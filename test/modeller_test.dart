@@ -23,8 +23,18 @@ void main() {
       'kod': 'PY-03',
       'baslik': 'Koleksiyonlar',
       'gorevler': [
-        {'id': 17, 'egitimId': 3, 'no': 1, 'baslik': 'Temel — Nesne oklarını çiz'},
-        {'id': 18, 'egitimId': 3, 'no': 2, 'baslik': 'Temel — Sıralı tekilleştirme'},
+        {
+          'id': 17,
+          'egitimId': 3,
+          'no': 1,
+          'baslik': 'Temel — Nesne oklarını çiz',
+        },
+        {
+          'id': 18,
+          'egitimId': 3,
+          'no': 2,
+          'baslik': 'Temel — Sıralı tekilleştirme',
+        },
       ],
     });
     expect(egitim.kod, 'PY-03');
