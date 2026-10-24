@@ -30,11 +30,41 @@ flutter test
 
 `tools/egitim_icerik` ayrı bir Dart paketidir. Ayrıntılar için kendi README dosyasına bakın.
 
+Ana projeyle birlikte analiz çalıştırmadan önce bu alt paketin bağımlılıklarını da kurun:
+
+```bash
+(cd tools/egitim_icerik && dart pub get)
+```
+
+## Jupyter notebook modeli
+
+`lib/modeller/notebook.dart`, Jupyter nbformat 4 JSON belgelerini tipli Dart nesnelerine dönüştürür ve yeniden JSON üretir.
+
+Desteklenen yapı:
+
+- Üst alanlar: `nbformat`, `nbformat_minor`, `metadata`, `cells`
+- Hücreler: `markdown`, `code`, `raw`
+- Kod çıktıları: `stream`, `display_data`, `execute_result`, `error`
+- `source` ve stream `text` alanlarında hem tek metin hem metin listesi
+- MIME verileri, markdown/raw ekleri, hücre/notebook metadata alanları, hücre kimliği ve nullable çalışma sayısı
+- nbformat 4.5 ve sonrasında zorunlu hücre kimliği doğrulaması; eski nbformat 4 alt sürümleriyle kimliksiz hücre uyumluluğu
+- Hatalı zorunlu alanlarda alan yolunu belirten `FormatException`
+
+Örnek nbformat belgesi ve model testleri `test/fixtures/ornek_notebook.ipynb` ile `test/notebook_modeli_test.dart` dosyalarındadır.
+
+```bash
+flutter test test/notebook_modeli_test.dart
+```
+
+Hafta 01 kapsamı yalnızca JSON modeli ve dönüşümleridir. Notebook dosyası seçme/kaydetme, salt okunur görüntüleme, hücre düzenleme ve çalıştırma arayüzleri henüz eklenmemiştir.
+
 ## Klasör yapısı
 
 ```
 lib/                     Uygulama kodu
+  modeller/notebook.dart Jupyter nbformat 4 modeli
 test/                    Widget ve birim testleri
+  fixtures/              Test notebook dosyaları
 android/                 Android projesi
 tools/egitim_icerik/     İçerik aracı (Dart komut satırı paketi)
 ```
