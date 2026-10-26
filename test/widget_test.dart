@@ -29,10 +29,7 @@ void main() {
 
     await tester.tap(find.text('Eğitimler').last);
     await tester.pumpAndSettle();
-    expect(
-      find.text('Ders listesi ve kategori filtresi burada olacak.'),
-      findsOneWidget,
-    );
+    expect(find.text('Tümü'), findsOneWidget);
   });
 
   testWidgets('profilden isimli rotayla Hakkında sayfasına gidilir', (
