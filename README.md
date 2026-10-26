@@ -26,6 +26,26 @@ flutter analyze
 flutter test
 ```
 
+## 2. hafta: giriş/kayıt formları ve eğitim listesi
+
+- Uygulama misafir olarak açılır. **Profil → Giriş yap / Kayıt ol** ile demo formlarına ulaşılır.
+- Girişte e-posta ve şifre; kayıtta ayrıca ad soyad ve şifre tekrarı zorunludur.
+  E-posta biçimi, en az 8 karakterlik şifre ve şifre eşleşmesi kontrol edilir.
+- Geçerli form yalnızca demo bildirimi gösterir: hesap oluşturulmaz, kimlik doğrulanmaz,
+  oturum açılmaz ve bilgiler kaydedilmez. Gerçek API/JWT bağlantısı 3. haftanın işidir.
+- **Eğitimler** sekmesinde kategori kartları ve ders listesi bulunur. Kart seçilince
+  liste filtrelenir; **Tümü** tüm dersleri getirir. Veriler mevcut sahte veri servisindendir.
+- Boş liste ve yükleme hatası için mesaj, hata durumunda **Tekrar dene** düğmesi vardır.
+  Ders satırları bu hafta başlık, ders kodu ve görev sayısını gösterir; ders içeriği
+  görüntüleyicisi bu değişikliğin kapsamında değildir.
+
+Kontrol etmek için:
+
+```bash
+flutter test --no-pub
+flutter analyze --no-pub
+```
+
 ## İçerik aracı
 
 `tools/egitim_icerik` ayrı bir Dart paketidir. Ayrıntılar için kendi README dosyasına bakın.
