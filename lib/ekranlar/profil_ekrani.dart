@@ -21,6 +21,20 @@ class ProfilEkrani extends StatelessWidget {
         const Center(child: Text('Henüz giriş yapılmadı')),
         const SizedBox(height: 24),
         ListTile(
+          leading: const Icon(Icons.login),
+          title: const Text('Giriş yap'),
+          subtitle: const Text('Demo giriş formu'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pushNamed(context, Rotalar.giris),
+        ),
+        ListTile(
+          leading: const Icon(Icons.person_add_outlined),
+          title: const Text('Kayıt ol'),
+          subtitle: const Text('Demo kayıt formu'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pushNamed(context, Rotalar.kayit),
+        ),
+        ListTile(
           leading: const Icon(Icons.info_outline),
           title: const Text('Hakkında'),
           trailing: const Icon(Icons.chevron_right),
