@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../modeller/egitim.dart';
 import '../modeller/kategori.dart';
+import '../modeller/notebook.dart';
 import '../servisler/egitim_servisi.dart';
+import 'notebook_goruntuleyici_ekrani.dart';
+
+typedef NotebookYukleyici = Future<NotebookBelgesi> Function();
 
 class EgitimlerEkrani extends StatefulWidget {
   final EgitimServisi? servis;
+  final NotebookYukleyici? notebookYukleyici;
 
-  const EgitimlerEkrani({super.key, this.servis});
+  const EgitimlerEkrani({super.key, this.servis, this.notebookYukleyici});
 
   @override
   State<EgitimlerEkrani> createState() => _EgitimlerEkraniState();
@@ -28,6 +34,30 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
     final kategoriler = await servis.kategorileriGetir();
     final egitimler = await servis.egitimleriGetir();
     return _EgitimVerisi(kategoriler, egitimler);
+  }
+
+  Future<void> _notebookAc(Egitim ders) async {
+    try {
+      final notebook =
+          await (widget.notebookYukleyici?.call() ??
+              rootBundle
+                  .loadString('assets/ornek_notebook.ipynb')
+                  .then(NotebookBelgesi.fromJsonString));
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => NotebookGoruntuleyiciEkrani(
+            notebook: notebook,
+            baslik: '${ders.kod} Notebook',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Notebook açılamadı.')));
+    }
   }
 
   @override
@@ -191,6 +221,8 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
                 leading: const Icon(Icons.menu_book_outlined),
                 title: Text(ders.baslik),
                 subtitle: Text('${ders.kod} • ${ders.gorevler.length} görev'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _notebookAc(ders),
               ),
             );
           },

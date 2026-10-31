@@ -34,7 +34,7 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-
+  flutter_markdown_plus: ^1.0.12
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -60,6 +60,7 @@ flutter:
   # API sözleşmesine uygun sahte veri (SahteEgitimServisi)
   assets:
     - assets/sahte_veri.json
+    - assets/ornek_notebook.ipynb
 
   # To add assets to your application, add an assets section, like this:
   # assets:

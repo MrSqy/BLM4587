@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:egitim_platformu/ekranlar/egitimler_ekrani.dart';
 import 'package:egitim_platformu/modeller/egitim.dart';
 import 'package:egitim_platformu/modeller/kategori.dart';
+import 'package:egitim_platformu/modeller/notebook.dart';
 import 'package:egitim_platformu/servisler/egitim_servisi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,7 +42,24 @@ class DenemeServisi implements EgitimServisi {
 Future<void> ekraniAc(WidgetTester tester, DenemeServisi servis) async {
   await tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(body: EgitimlerEkrani(servis: servis)),
+      home: Scaffold(
+        body: EgitimlerEkrani(
+          servis: servis,
+          notebookYukleyici: () async => NotebookBelgesi(
+            nbformat: 4,
+            nbformatMinor: 5,
+            metadata: const {},
+            hucreler: [
+              MarkdownHucresi(
+                id: 'giris',
+                metadata: const {},
+                kaynak: '# Açılan notebook',
+                ekler: const {},
+              ),
+            ],
+          ),
+        ),
+      ),
     ),
   );
   await tester.pump();
@@ -55,6 +73,20 @@ Future<void> sec(WidgetTester tester, String anahtar) async {
 }
 
 void main() {
+  testWidgets('ders karti salt okunur notebook goruntuleyicisini acar', (
+    tester,
+  ) async {
+    await ekraniAc(tester, DenemeServisi());
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(const ValueKey('ders_1')));
+    await tester.tap(find.byKey(const ValueKey('ders_1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PY-01 Notebook'), findsOneWidget);
+    expect(find.text('Açılan notebook'), findsOneWidget);
+  });
+
   testWidgets(
     'kategoriler filtreler, Tümü geri getirir ve yeniden veri istemez',
     (tester) async {
