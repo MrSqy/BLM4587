@@ -24,11 +24,19 @@ class _AnaIskeletState extends State<AnaIskelet> {
   ];
 
   // IndexedStack sekmeler arasında geçerken ekranların durumunu korur.
-  final List<Widget> _sayfalar = const [
-    AnaSayfa(),
-    EgitimlerEkrani(),
-    IlerlemeEkrani(),
-    ProfilEkrani(),
+  late final List<Widget> _sayfalar = [
+    AnaSayfa(
+      kategoriSec: (id) => setState(() {
+        _sayfalar[1] = EgitimlerEkrani(
+          key: ValueKey(id),
+          baslangicKategoriId: id,
+        );
+        _seciliIndeks = 1;
+      }),
+    ),
+    const EgitimlerEkrani(),
+    const IlerlemeEkrani(),
+    const ProfilEkrani(),
   ];
 
   @override

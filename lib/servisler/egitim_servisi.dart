@@ -3,11 +3,10 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 
 import '../modeller/egitim.dart';
+import 'api_istemcisi.dart';
 import '../modeller/kategori.dart';
 
-// Ekranlar veriyi bu arayüz üzerinden ister. Şimdilik SahteEgitimServisi kullanılır;
-// BLM4581 Web API'si hazır olunca aynı arayüzü uygulayan bir http servisi yazılıp
-// aşağıdaki egitimServisi değişkeni ona çevrilecek.
+// Üretimde HttpEgitimServisi; testlerde enjekte edilen sahte servis kullanılır.
 abstract class EgitimServisi {
   Future<List<Kategori>> kategorileriGetir();
 
@@ -67,5 +66,33 @@ class SahteEgitimServisi implements EgitimServisi {
   }
 }
 
-// Uygulamanın kullandığı servis.
-EgitimServisi egitimServisi = SahteEgitimServisi();
+class HttpEgitimServisi implements EgitimServisi {
+  final ApiIstemcisi api;
+  HttpEgitimServisi(this.api);
+  @override
+  Future<List<Kategori>> kategorileriGetir() async =>
+      (await api.iste('kategoriler') as List)
+          .map((e) => Kategori.fromJson(e as Map<String, dynamic>))
+          .toList();
+  @override
+  Future<List<Egitim>> egitimleriGetir({int? kategoriId}) async =>
+      (await api.iste(
+                'egitimler${kategoriId == null ? '' : '?kategoriId=$kategoriId'}',
+              )
+              as List)
+          .map((e) => Egitim.fromJson(e as Map<String, dynamic>))
+          .toList();
+  @override
+  Future<Egitim?> egitimGetir(int id) async {
+    try {
+      return Egitim.fromJson(
+        await api.iste('egitimler/$id') as Map<String, dynamic>,
+      );
+    } on ApiHatasi catch (e) {
+      if (e.durum == 404) return null;
+      rethrow;
+    }
+  }
+}
+
+EgitimServisi egitimServisi = HttpEgitimServisi(apiIstemcisi);

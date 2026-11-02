@@ -6,14 +6,23 @@ import '../modeller/kategori.dart';
 import '../modeller/notebook.dart';
 import '../servisler/egitim_servisi.dart';
 import 'notebook_goruntuleyici_ekrani.dart';
+import 'ders_ekrani.dart';
+import '../rotalar.dart';
+import '../servisler/oturum_servisi.dart';
 
 typedef NotebookYukleyici = Future<NotebookBelgesi> Function();
 
 class EgitimlerEkrani extends StatefulWidget {
   final EgitimServisi? servis;
+  final int? baslangicKategoriId;
   final NotebookYukleyici? notebookYukleyici;
 
-  const EgitimlerEkrani({super.key, this.servis, this.notebookYukleyici});
+  const EgitimlerEkrani({
+    super.key,
+    this.servis,
+    this.baslangicKategoriId,
+    this.notebookYukleyici,
+  });
 
   @override
   State<EgitimlerEkrani> createState() => _EgitimlerEkraniState();
@@ -26,7 +35,19 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
   @override
   void initState() {
     super.initState();
+    _kategoriId = widget.baslangicKategoriId;
     _veri = _yukle();
+    oturumServisi.addListener(_oturumDegisti);
+  }
+
+  void _oturumDegisti() {
+    if (mounted) setState(() => _veri = _yukle());
+  }
+
+  @override
+  void dispose() {
+    oturumServisi.removeListener(_oturumDegisti);
+    super.dispose();
   }
 
   Future<_EgitimVerisi> _yukle() async {
@@ -34,6 +55,44 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
     final kategoriler = await servis.kategorileriGetir();
     final egitimler = await servis.egitimleriGetir();
     return _EgitimVerisi(kategoriler, egitimler);
+  }
+
+  Future<void> _dersAc(Egitim ders) async {
+    if (widget.notebookYukleyici != null) {
+      await _notebookAc(ders);
+      return;
+    }
+    if (!ders.erisilebilir) {
+      final devam = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(ders.baslik),
+          content: Text(
+            '${ders.ozet}\n\nHer eğitimin ilk dersi misafirlere açık. Bu derse devam etmek için giriş yap.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Müfredata dön'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Giriş yap'),
+            ),
+          ],
+        ),
+      );
+      if (devam != true || !mounted) return;
+      await Navigator.pushNamed(context, Rotalar.giris);
+      if (!mounted || !oturumServisi.girisYapildi) return;
+    }
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => DersEkrani(ozet: ders, servis: widget.servis),
+      ),
+    );
   }
 
   Future<void> _notebookAc(Egitim ders) async {
@@ -96,7 +155,7 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
             .toList();
         return ListView.builder(
           key: const PageStorageKey('egitimListesi'),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
           // Kategori alanı ve dersler aynı kaydırma alanını paylaşır.
           itemCount: 1 + (dersler.isEmpty ? 1 : dersler.length),
           itemBuilder: (context, indeks) {
@@ -105,10 +164,10 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Kategoriler',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    'Öğrenmeye devam et',
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   ChoiceChip(
                     key: const ValueKey('tumKategoriler'),
                     label: const Text('Tümü'),
@@ -127,14 +186,14 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount:
                               (constraints.maxWidth /
-                                      (240 *
+                                      (150 *
                                           MediaQuery.textScalerOf(
                                             context,
                                           ).scale(1)))
                                   .floor()
                                   .clamp(1, 4),
                           mainAxisExtent:
-                              150 * MediaQuery.textScalerOf(context).scale(1),
+                              174 * MediaQuery.textScalerOf(context).scale(1),
                           crossAxisSpacing: 8,
                           mainAxisSpacing: 8,
                         ),
@@ -167,7 +226,15 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
                                       Row(
                                         children: [
                                           Expanded(
-                                            child: Text(kategori.kisaltma),
+                                            child: Icon(
+                                              kategori.kisaltma == 'PY'
+                                                  ? Icons.code
+                                                  : Icons.functions,
+                                              size: 24,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                            ),
                                           ),
                                           if (secili)
                                             const Icon(
@@ -200,7 +267,7 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
                     'Dersler (${dersler.length})',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                 ],
               );
             }
@@ -220,9 +287,13 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
               child: ListTile(
                 leading: const Icon(Icons.menu_book_outlined),
                 title: Text(ders.baslik),
-                subtitle: Text('${ders.kod} • ${ders.gorevler.length} görev'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _notebookAc(ders),
+                subtitle: Text(
+                  '${ders.kod} · ${ders.gorevSayisi} görev${ders.misafireAcik ? ' · İlk ders açık' : ''}',
+                ),
+                trailing: Icon(
+                  !ders.erisilebilir ? Icons.lock_outline : Icons.chevron_right,
+                ),
+                onTap: () => _dersAc(ders),
               ),
             );
           },
