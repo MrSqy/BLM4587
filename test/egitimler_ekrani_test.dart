@@ -165,4 +165,52 @@ void main() {
     await sec(tester, 'kategori_2');
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'yatay küçük ekranda büyük yazıyla hata ve tekrar deneme erişilebilir',
+    (tester) async {
+      tester.view.physicalSize = const Size(720, 320);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final servis = DenemeServisi()..hata = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: Scaffold(
+            appBar: AppBar(title: const Text('Eğitimler')),
+            body: EgitimlerEkrani(servis: servis),
+            bottomNavigationBar: NavigationBar(
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home),
+                  label: 'Ana sayfa',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.book),
+                  label: 'Eğitimler',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final dugme = find.widgetWithText(FilledButton, 'Tekrar dene');
+      await tester.ensureVisible(dugme);
+      await tester.pumpAndSettle();
+      servis.hata = false;
+      await tester.tap(dugme);
+      await tester.pumpAndSettle();
+      expect(find.text('Dersler (2)'), findsOneWidget);
+      expect(servis.istekSayisi, 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

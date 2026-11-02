@@ -70,7 +70,7 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
         }
         if (snapshot.hasError) {
           return Center(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
