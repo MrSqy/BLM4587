@@ -1,3 +1,5 @@
+import 'package:egitim_platformu/servisler/oturum_servisi.dart';
+import 'destek/oturum_destegi.dart';
 import 'package:egitim_platformu/ekranlar/profil_ekrani.dart';
 import 'package:egitim_platformu/rotalar.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +30,15 @@ Future<void> yaz(WidgetTester tester, String alan, String metin) async {
 }
 
 void main() {
+  late OturumServisi eski;
+  setUp(() {
+    eski = oturumServisi;
+    oturumServisi = denemeOturumu();
+  });
+  tearDown(() {
+    oturumServisi.dispose();
+    oturumServisi = eski;
+  });
   testWidgets('girişte boş ve geçersiz alanlar reddedilir', (tester) async {
     await formuAc(tester);
     await gonder(tester);
@@ -41,16 +52,17 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
   });
 
-  testWidgets('geçerli giriş yalnızca demo bildirimi gösterir', (tester) async {
+  testWidgets('geçerli giriş oturum açar ve önceki sayfaya döner', (
+    tester,
+  ) async {
     await formuAc(tester);
     await yaz(tester, 'eposta', '  ogrenci@ornek.com  ');
     await yaz(tester, 'sifre', '12345678');
     await gonder(tester);
-    expect(find.text('Demo form doğrulandı'), findsOneWidget);
-    expect(find.textContaining('oturum açılmadı.'), findsOneWidget);
-    await tester.tap(find.text('Tamam'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('formGonder')), findsOneWidget);
+    expect(oturumServisi.girisYapildi, isTrue);
+    expect(oturumServisi.adSoyad, 'Örnek Öğrenci');
+    expect(find.byKey(const ValueKey('formGonder')), findsNothing);
+    await oturumServisi.temizle();
   });
 
   testWidgets('kayıtta zorunlu alanlar ve şifre tekrarı doğrulanır', (
@@ -62,16 +74,18 @@ void main() {
     expect(find.text('Şifre tekrarı zorunludur.'), findsOneWidget);
     await yaz(tester, 'adSoyad', '   ');
     await yaz(tester, 'eposta', 'ogrenci@ornek.com');
-    await yaz(tester, 'sifre', '12345678');
-    await yaz(tester, 'sifreTekrari', '12345679');
+    await yaz(tester, 'sifre', 'Deneme123!');
+    await yaz(tester, 'sifreTekrari', 'Deneme124!');
     await gonder(tester);
     expect(find.text('Ad soyad zorunludur.'), findsOneWidget);
     expect(find.text('Şifreler eşleşmiyor.'), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
     await yaz(tester, 'adSoyad', 'Örnek Öğrenci');
-    await yaz(tester, 'sifreTekrari', '12345678');
+    await yaz(tester, 'sifreTekrari', 'Deneme123!');
     await gonder(tester);
-    expect(find.textContaining('hesap oluşturulmadı'), findsOneWidget);
+    expect(oturumServisi.girisYapildi, isTrue);
+    expect(find.byKey(const ValueKey('formGonder')), findsNothing);
+    await oturumServisi.temizle();
   });
 
   testWidgets('şifre gizlenir ve görünürlük değiştirilebilir', (tester) async {

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import '../servisler/api_istemcisi.dart';
 
 import '../modeller/egitim.dart';
 import '../modeller/kategori.dart';
 import '../servisler/egitim_servisi.dart';
 
 class AnaSayfa extends StatefulWidget {
-  const AnaSayfa({super.key});
+  final ValueChanged<int>? kategoriSec;
+  const AnaSayfa({super.key, this.kategoriSec});
 
   @override
   State<AnaSayfa> createState() => _AnaSayfaState();
@@ -36,11 +39,31 @@ class _AnaSayfaState extends State<AnaSayfa> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('Veriler yüklenemedi: ${snapshot.error}'));
+          if (kDebugMode) debugPrint('Ders yükleme hatası: ${snapshot.error}');
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    snapshot.error is ApiHatasi
+                        ? (snapshot.error as ApiHatasi).mesaj
+                        : 'Dersler yüklenemedi. Bağlantınızı kontrol edin.',
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () => setState(() => _ozet = _ozetiGetir()),
+                    child: const Text('Tekrar dene'),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
         final ozet = snapshot.data!;
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(24),
           children: [
             Text(
               'Hoş geldin!',
@@ -75,6 +98,9 @@ class _AnaSayfaState extends State<AnaSayfa> {
                   title: Text(kategori.ad),
                   subtitle: Text(kategori.aciklama),
                   trailing: Text('${ozet.dersSayisi(kategori.id)} ders'),
+                  onTap: widget.kategoriSec == null
+                      ? null
+                      : () => widget.kategoriSec!(kategori.id),
                 ),
               ),
           ],
@@ -91,7 +117,7 @@ class _Ozet {
   _Ozet(this.kategoriler, this.egitimler);
 
   int get gorevSayisi =>
-      egitimler.fold(0, (toplam, e) => toplam + e.gorevler.length);
+      egitimler.fold(0, (toplam, e) => toplam + e.gorevSayisi);
 
   int dersSayisi(int kategoriId) =>
       egitimler.where((e) => e.kategoriId == kategoriId).length;

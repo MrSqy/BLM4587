@@ -26,25 +26,67 @@ flutter analyze
 flutter test
 ```
 
-## 2. hafta: giriş/kayıt formları ve eğitim listesi
+## 3. hafta: mobil API, oturum ve kod çalışması
 
-- Uygulama misafir olarak açılır. **Profil → Giriş yap / Kayıt ol** ile demo formlarına ulaşılır.
-- Girişte e-posta ve şifre; kayıtta ayrıca ad soyad ve şifre tekrarı zorunludur.
-  E-posta biçimi, en az 8 karakterlik şifre ve şifre eşleşmesi kontrol edilir.
-- Geçerli form yalnızca demo bildirimi gösterir: hesap oluşturulmaz, kimlik doğrulanmaz,
-  oturum açılmaz ve bilgiler kaydedilmez. Gerçek API/JWT bağlantısı 3. haftanın işidir.
-- **Eğitimler** sekmesinde kategori kartları ve ders listesi bulunur. Kart seçilince
-  liste filtrelenir; **Tümü** tüm dersleri getirir. Veriler mevcut sahte veri servisindendir.
-- Boş liste ve yükleme hatası için mesaj, hata durumunda **Tekrar dene** düğmesi vardır.
-  Ders satırları bu hafta başlık, ders kodu ve görev sayısını gösterir; ders içeriği
-  görüntüleyicisi bu değişikliğin kapsamında değildir.
+- Sade lacivert açık/koyu tema; Eğitimler, Profil, giriş/kayıt ve ders/kod ekranları.
+  Ana sayfa kategori kartı ilgili eğitim filtresini açar. Mevcut dört sekme korunur.
+- Veriler artık HTTP üzerinden BLM4581 `/api/mobil/` uçlarından gelir.
+  Sahte servis yalnız test/örnek veridir; bağlantı hatasında sessizce sahte veriye geçilmez.
+- Misafir erişiminde sunucunun `misafireAcik` ve `erisilebilir` alanları kullanılır.
+  Her kategorinin ilk dersi okunabilir, çalıştırılabilir ve test edilebilir.
+  Diğer derslerde özet ve giriş çağrısı gösterilir. Erişimi backend de denetler.
+- Kayıt sonrası otomatik oturum açılır. Şifre en az 8 karakter; büyük/küçük harf,
+  rakam ve özel karakter içerir. JWT ömrü 15 dakika, refresh token yoktur.
+- Token, bitiş ve kullanıcı bilgileri `flutter_secure_storage` içinde saklanır;
+  `shared_preferences` yalnız `oturum_acik` boolean değerini taşır. Parola saklanmaz.
+  Android yedeklemesi kapalıdır. Süre bitimi/401 oturumu temizler; 403/429/503 temizlemez.
+  Başarılı çıkış backend'de hesabın eski JWT'lerini iptal eder, cihaz kaydını siler.
+  Ağ hatasıyla başarısız çıkış, başarı gibi gösterilmez.
+- Kod editörü 32000 karakter sınırı ve girinti düğmesi içerir. Çalıştır ve Test et
+  yalnız öğrenci kodunu gönderir; test kodu sunucuda kalır. Görev sonuçları,
+  atlanan/otomatik testi olmayan görevler, zaman aşımı ve servis hataları ayrılır.
+- `{mesaj}`, ProblemDetails `title/errors` ve boş HTTP hata yanıtları desteklenir.
+  Notebook modeli ve görüntüleyici bileşeni korunur; API dersleri gerçek Markdown
+  içeriğini gösterir, her ders yerine aynı örnek notebook açılmaz.
 
-Kontrol etmek için:
+### API adresi ve yerel çalıştırma
+
+Android emülatöründe varsayılan adres `http://10.0.2.2:5080/api/mobil/`;
+Android dışı geliştirme ortamında `http://127.0.0.1:5080/api/mobil/`.
+Fiziksel telefonda `127.0.0.1` telefonun kendisidir. Bilgisayarla aynı yerel ağdaki
+telefon için bilgisayarın erişilebilir IPv4 adresini açıkça verin:
 
 ```bash
-flutter test --no-pub
-flutter analyze --no-pub
+cd /home/baranbeey/dev/BLM4587-proje
+read 'BLM_API_HOST?Bilgisayarın telefondan erişilebilir IPv4 adresi: '
+/home/baranbeey/flutter/bin/flutter run --debug --no-pub --dart-define="API_ADRESI=http://${BLM_API_HOST}:5080/api/mobil/"
+unset BLM_API_HOST
 ```
+
+Backend'in yalnız localhost yerine bu arayüzden erişilebilir dinlemesi gerekir;
+backend ortamı ve Docker hazırlığı .NET çalışmasının sorumluluğundadır.
+Adresin sonundaki `/` isteğe bağlıdır. HTTP yalnız debug geliştirmesinde açıktır;
+yayın derlemesinde API adresi HTTPS olmalıdır. JWT anahtarı ve parolaları
+Flutter'a, dart-define parametrelerine veya depoya eklemeyin.
+
+### Yerel doğrulama
+
+```bash
+/home/baranbeey/flutter/bin/flutter test --no-pub
+/home/baranbeey/flutter/bin/flutter analyze --no-pub
+/home/baranbeey/flutter/bin/flutter build bundle --debug --no-pub
+```
+
+Android bağımlılıkları önbellekteyse, ağ kullanmadan APK kontrolü:
+
+```bash
+cd android
+./gradlew --offline :app:assembleDebug -Ptarget=lib/main.dart -Ptarget-platform=android-arm64 -Pbuild-mode=debug
+```
+
+Widget/HTTP testleri taklit yanıtlar ve depolama kanalı kullanır; gerçek backend,
+Android Keystore, Docker izolasyonu veya telefon kabulü yerine geçmez.
+Bu teslimin sonuçları ve eksik ortam bağımlılığı `raporlar/baran/hafta-03.md` içindedir.
 
 ## İçerik aracı
 
@@ -76,7 +118,7 @@ Desteklenen yapı:
 flutter test test/notebook_modeli_test.dart
 ```
 
-Hafta 01 kapsamı yalnızca JSON modeli ve dönüşümleridir. Notebook dosyası seçme/kaydetme, salt okunur görüntüleme, hücre düzenleme ve çalıştırma arayüzleri henüz eklenmemiştir.
+Hafta 01 modeli ve Hafta 02 salt okunur notebook bileşeni korunur. Hafta 03 API ders ekranı Markdown ve Python editörü kullanır; notebook çıktılarının API üzerinden eşlenmesi ayrı backend/görüntüleyici çalışmasıdır.
 
 ## Klasör yapısı
 
