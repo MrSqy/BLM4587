@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import '../servisler/api_istemcisi.dart';
 
 import '../modeller/egitim.dart';
 import '../modeller/kategori.dart';
@@ -37,13 +39,18 @@ class _AnaSayfaState extends State<AnaSayfa> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
+          if (kDebugMode) debugPrint('Ders yükleme hatası: ${snapshot.error}');
           return Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Dersler yüklenemedi. Bağlantınızı kontrol edin.'),
+                  Text(
+                    snapshot.error is ApiHatasi
+                        ? (snapshot.error as ApiHatasi).mesaj
+                        : 'Dersler yüklenemedi. Bağlantınızı kontrol edin.',
+                  ),
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: () => setState(() => _ozet = _ozetiGetir()),

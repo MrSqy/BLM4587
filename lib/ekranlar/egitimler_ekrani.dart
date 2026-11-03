@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import '../servisler/api_istemcisi.dart';
 import 'package:flutter/services.dart';
 
 import '../modeller/egitim.dart';
@@ -128,13 +130,18 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
+          if (kDebugMode) debugPrint('Ders yükleme hatası: ${snapshot.error}');
           return Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Eğitimler yüklenemedi. Lütfen tekrar deneyin.'),
+                  Text(
+                    snapshot.error is ApiHatasi
+                        ? (snapshot.error as ApiHatasi).mesaj
+                        : 'Eğitimler yüklenemedi. Lütfen tekrar deneyin.',
+                  ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: () => setState(() {
