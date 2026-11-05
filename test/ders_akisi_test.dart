@@ -1,3 +1,4 @@
+import 'package:egitim_platformu/modeller/gorev.dart';
 import 'dart:async';
 import 'package:egitim_platformu/ekranlar/ders_ekrani.dart';
 import 'package:egitim_platformu/ekranlar/egitimler_ekrani.dart';
@@ -21,7 +22,40 @@ const acik = Egitim(
   misafireAcik: true,
   erisilebilir: true,
   icerikMarkdown: '# Ders içeriği',
-  baslangicKodu: 'print(1)',
+  baslangicKodu: 'ESKI DERS KODU KULLANILMAZ',
+  gorevler: [
+    Gorev(
+      id: 101,
+      egitimId: 7,
+      no: 3,
+      baslik: 'Selam',
+      tur: 'kod',
+      baslangicDosyasi: 'gorevler/selam.py',
+      baslangicKodu: 'print(1)',
+      kontrol: GorevKontrolu(
+        beklenenCikti: '  Merhaba\n',
+        beklenenCikisKodu: 2,
+      ),
+    ),
+    Gorev(
+      id: 203,
+      egitimId: 7,
+      no: 1,
+      baslik: 'İkinci kod',
+      tur: 'kod',
+      baslangicDosyasi: 'gorevler/ikinci.py',
+      baslangicKodu: '# ikinci',
+      kontrol: GorevKontrolu(beklenenCikti: ''),
+    ),
+    Gorev(
+      id: 310,
+      egitimId: 7,
+      no: 6,
+      baslik: 'Açıkla',
+      tur: 'aciklama',
+      aciklama: 'Kabul ölçütü: Nedenini açıkla.',
+    ),
+  ],
 );
 const kapali = Egitim(
   id: 1,
@@ -35,6 +69,7 @@ const kapali = Egitim(
 
 class DersServisi implements EgitimServisi {
   int detayIstegi = 0;
+  Egitim? ders;
   bool uye = false;
   @override
   Future<List<Kategori>> kategorileriGetir() async => [
@@ -49,7 +84,7 @@ class DersServisi implements EgitimServisi {
   Future<Egitim?> egitimGetir(int id) async {
     detayIstegi++;
     if (id == 7) {
-      return acik;
+      return ders ?? acik;
     }
     if (!uye) {
       throw const ApiHatasi('Giriş gerekli.', 401);
@@ -111,28 +146,39 @@ void main() {
     },
   );
   for (final durum in [
-    'tamamlandi',
+    'basarili',
     'basarisiz',
     'hata',
     'zaman_asimi',
-    'test_yok',
+    'cikti_siniri',
   ]) {
-    testWidgets('runner $durum sonucu doğru sunulur', (tester) async {
+    testWidgets('görev testi $durum sonucu doğru sunulur', (tester) async {
       final istekler = <http.Request>[];
       final api = ApiIstemcisi(
         istemci: MockClient((r) async {
           istekler.add(r);
           return jsonYanit({
-            'basarili': durum == 'tamamlandi',
+            'no': 3,
+            'basarili': durum == 'basarili',
             'durum': durum,
-            'cikti': 'Örnek çıktı',
+            'cikti': durum == 'basarisiz' ? 'Merhaba' : '  Merhaba\n',
             'hata': '',
-            'gorevler': [
-              {'no': 1, 'durum': 'basarili'},
-              {'no': 2, 'durum': 'basarisiz'},
-              {'no': 3, 'durum': 'atlanmis'},
-              {'no': 4, 'durum': 'test_yok'},
-            ],
+            'cikisKodu': durum == 'basarili'
+                ? 2
+                : durum == 'basarisiz'
+                ? 0
+                : null,
+            'ciktiEslesiyor': durum == 'basarili'
+                ? true
+                : durum == 'basarisiz'
+                ? false
+                : null,
+            'cikisKoduEslesiyor': durum == 'basarili'
+                ? true
+                : durum == 'basarisiz'
+                ? false
+                : null,
+            'kuralIhlalleri': [],
           });
         }),
       );
@@ -144,41 +190,162 @@ void main() {
       );
       await tester.pumpAndSettle();
       await butonaGit(tester, find.byKey(const ValueKey('kodTest')));
-      expect(istekler.single.url.path, '/api/mobil/egitimler/7/test');
+      expect(
+        istekler.single.url.path,
+        '/api/mobil/egitimler/7/gorevler/3/test',
+      );
       expect(istekler.single.body, '{"kod":"print(1)"}');
-      final baslik = durum == 'tamamlandi'
-          ? 'Çalışma tamamlandı'
+      final baslik = durum == 'basarili'
+          ? 'Test geçti'
           : durum == 'zaman_asimi'
           ? 'Süre sınırı aşıldı'
-          : durum == 'test_yok'
-          ? 'Otomatik test bulunamadı'
-          : 'Kodunu gözden geçir';
+          : durum == 'cikti_siniri'
+          ? 'Çıktı sınırı aşıldı'
+          : 'Test geçmedi';
       await tester.scrollUntilVisible(
         find.text(baslik),
         200,
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text(baslik), findsOneWidget);
-      if (durum != 'tamamlandi') {
-        expect(find.text('Çalışma tamamlandı'), findsNothing);
+      if (durum != 'basarili') {
+        expect(find.text('Test geçti'), findsNothing);
       }
       await tester.scrollUntilVisible(
-        find.text('Testler geçmedi'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Testler geçmedi'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('Otomatik test yok; dersin kabul ölçütlerini kontrol et.'),
+        find.byKey(const ValueKey('beklenenCikti')),
         200,
         scrollable: find.byType(Scrollable).first,
       );
       expect(
-        find.text('Otomatik test yok; dersin kabul ölçütlerini kontrol et.'),
-        findsOneWidget,
+        tester
+            .widget<SelectableText>(find.byKey(const ValueKey('beklenenCikti')))
+            .data,
+        '  Merhaba\n',
+      );
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('gercekCikti')),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(
+        tester
+            .widget<SelectableText>(find.byKey(const ValueKey('gercekCikti')))
+            .data,
+        durum == 'basarisiz' ? 'Merhaba' : '  Merhaba\n',
       );
     });
   }
+  testWidgets(
+    'görev seçimi dosyayı değiştirir; boş dahil bağımsız taslaklar korunur',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DersEkrani(ozet: acik, servis: DersServisi()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final editor = find.byKey(const ValueKey('kodEditoru'));
+      await tester.ensureVisible(editor);
+      await tester.enterText(editor, 'benim kodum');
+      await tester.drag(find.byType(ListView).first, const Offset(0, 1500));
+      await tester.pumpAndSettle();
+      await butonaGit(tester, find.byKey(const ValueKey('gorev_203')));
+      await tester.ensureVisible(editor);
+      expect(tester.widget<TextField>(editor).controller!.text, '# ikinci');
+      expect(
+        tester.widget<TextField>(editor).decoration!.labelText,
+        'gorevler/ikinci.py',
+      );
+      await tester.enterText(editor, '');
+      await tester.drag(find.byType(ListView).first, const Offset(0, 1500));
+      await tester.pumpAndSettle();
+      await butonaGit(tester, find.byKey(const ValueKey('gorev_101')));
+      await tester.ensureVisible(editor);
+      expect(tester.widget<TextField>(editor).controller!.text, 'benim kodum');
+      await tester.drag(find.byType(ListView).first, const Offset(0, 1500));
+      await tester.pumpAndSettle();
+      await butonaGit(tester, find.byKey(const ValueKey('gorev_203')));
+      await tester.ensureVisible(editor);
+      expect(tester.widget<TextField>(editor).controller!.text, '');
+    },
+  );
+  testWidgets('açıklama görevi editör veya otomatik başarı göstermez', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DersEkrani(ozet: acik, servis: DersServisi()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await butonaGit(tester, find.byKey(const ValueKey('gorev_310')));
+    expect(find.byKey(const ValueKey('kodEditoru')), findsNothing);
+    expect(find.byKey(const ValueKey('kodTest')), findsNothing);
+    expect(find.text('Kabul ölçütü: Nedenini açıkla.'), findsOneWidget);
+    expect(find.text('Test geçti'), findsNothing);
+  });
+  testWidgets(
+    'eski veya kontrolsüz görev aktarım gerektirir; eski endpoint çağrılmaz',
+    (tester) async {
+      final servis = DersServisi()
+        ..ders = const Egitim(
+          id: 7,
+          kategoriId: 1,
+          kod: 'PY',
+          baslik: 'Eski',
+          erisilebilir: true,
+          gorevler: [Gorev(id: 42, egitimId: 7, no: 1, baslik: 'Eski')],
+        );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DersEkrani(ozet: acik, servis: servis),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('güncel içerik aktarımı gerekiyor'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('kodCalistir')), findsNothing);
+    },
+  );
+  testWidgets(
+    'çalıştır test başarısı değildir; yalnız kod ve görev no gönderilir',
+    (tester) async {
+      http.Request? req;
+      final api = ApiIstemcisi(
+        istemci: MockClient((r) async {
+          req = r;
+          return jsonYanit({
+            'no': 3,
+            'basarili': true,
+            'durum': 'tamamlandi',
+            'cikti': '',
+            'hata': '',
+            'cikisKodu': 0,
+            'ciktiEslesiyor': null,
+            'cikisKoduEslesiyor': null,
+            'kuralIhlalleri': [],
+          });
+        }),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DersEkrani(ozet: acik, servis: DersServisi(), api: api),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await butonaGit(tester, find.byKey(const ValueKey('kodCalistir')));
+      expect(req!.url.path, '/api/mobil/egitimler/7/gorevler/3/calistir');
+      expect(req!.body, '{"kod":"print(1)"}');
+      await tester.scrollUntilVisible(
+        find.text('Çalıştırma tamamlandı'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Test geçti'), findsNothing);
+    },
+  );
   testWidgets(
     'çalıştır isteği beklerken çift gönderim engellenir; 503 yeniden denemeye izin verir',
     (tester) async {
@@ -227,6 +394,8 @@ void main() {
         home: DersEkrani(ozet: kapali, servis: servis),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ders içeriği'));
     await tester.pumpAndSettle();
     expect(find.text('Üyeye özel içerik'), findsOneWidget);
     servis.uye = false;

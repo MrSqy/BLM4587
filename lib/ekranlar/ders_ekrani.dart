@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../modeller/egitim.dart';
+import '../modeller/gorev.dart';
+import '../modeller/gorev_sonucu.dart';
 import '../rotalar.dart';
 import '../servisler/api_istemcisi.dart';
 import '../servisler/egitim_servisi.dart';
@@ -17,14 +20,17 @@ class DersEkrani extends StatefulWidget {
 
 class _DersEkraniState extends State<DersEkrani> {
   final _kod = TextEditingController();
+  // Yalnız bu açık ders oturumu boyunca; sunucu görev numarası değil gerçek ID.
+  final Map<(int, int), String> _taslaklar = {};
   Egitim? _ders;
-  Map<String, dynamic>? _sonuc;
+  Gorev? _gorev;
+  GorevSonucu? _sonuc;
   String? _hata;
-  bool _yukleniyor = true;
-  bool _calisiyor = false;
-  bool _girisGerekli = false;
+  bool _yukleniyor = true,
+      _calisiyor = false,
+      _girisGerekli = false,
+      _testSonucu = false;
   int _istek = 0;
-
   @override
   void initState() {
     super.initState();
@@ -33,16 +39,33 @@ class _DersEkraniState extends State<DersEkrani> {
   }
 
   void _oturumDegisti() {
-    // Oturum değiştiğinde önceki kullanıcıya ait içerik ekranda kalmaz.
+    _taslaklar.clear();
     _kod.clear();
+    _gorev = null;
     _sonuc = null;
     _yukle();
   }
 
+  void _sec(Gorev g) {
+    if (_gorev != null && _ders != null) {
+      _taslaklar[(_ders!.id, _gorev!.id)] = _kod.text;
+    }
+    _gorev = g;
+    _kod.text = _taslaklar[(_ders!.id, g.id)] ?? g.baslangicKodu;
+    _sonuc = null;
+    _hata = null;
+  }
+
   Future<void> _yukle() async {
     final istek = ++_istek;
+    final onceki = _gorev?.id;
+    if (_ders != null && _gorev != null) {
+      _taslaklar[(_ders!.id, _gorev!.id)] = _kod.text;
+    }
     setState(() {
       _ders = null;
+      _gorev = null;
+      _sonuc = null;
       _yukleniyor = true;
       _hata = null;
       _girisGerekli = false;
@@ -57,33 +80,43 @@ class _DersEkraniState extends State<DersEkrani> {
         _girisGerekli = ders != null && !ders.erisilebilir;
         if (ders == null) {
           _hata = 'Ders bulunamadı.';
-        } else if (_kod.text.isEmpty) {
-          _kod.text = ders.baslangicKodu;
+        }
+        if (_ders != null && _ders!.gorevler.isNotEmpty) {
+          _sec(
+            _ders!.gorevler.firstWhere(
+              (g) => g.id == onceki,
+              orElse: () => _ders!.gorevler.first,
+            ),
+          );
         }
       });
     } on ApiHatasi catch (e) {
-      if (!mounted || istek != _istek) return;
-      setState(() {
-        _hata = e.mesaj;
-        _girisGerekli = e.durum == 401;
-      });
+      if (mounted && istek == _istek) {
+        setState(() {
+          _hata = e.mesaj;
+          _girisGerekli = e.durum == 401;
+        });
+      }
     } catch (_) {
       if (mounted && istek == _istek) {
         setState(() => _hata = 'Ders yüklenemedi. Tekrar deneyin.');
       }
     } finally {
-      if (mounted && istek == _istek) setState(() => _yukleniyor = false);
+      if (mounted && istek == _istek) {
+        setState(() => _yukleniyor = false);
+      }
     }
   }
 
   Future<void> _calistir(bool test) async {
-    if (_calisiyor) return;
-    if (_kod.text.length > 32000) {
-      setState(() => _hata = 'Kod en fazla 32000 karakter olabilir.');
-      return;
-    }
-    if (_kod.text.trim().isEmpty) {
-      setState(() => _hata = 'Çalıştırılacak kodu yazın.');
+    final g = _gorev;
+    if (_calisiyor || g == null || !g.kodGorevi) return;
+    if (_kod.text.trim().isEmpty || _kod.text.length > 32000) {
+      setState(
+        () => _hata = _kod.text.trim().isEmpty
+            ? 'Çalıştırılacak kodu yazın.'
+            : 'Kod en fazla 32000 karakter olabilir.',
+      );
       return;
     }
     final istek = _istek;
@@ -92,14 +125,19 @@ class _DersEkraniState extends State<DersEkrani> {
       _calisiyor = true;
       _sonuc = null;
       _hata = null;
+      _testSonucu = test;
     });
     try {
-      final sonuc = await (widget.api ?? apiIstemcisi).iste(
-        'egitimler/${widget.ozet.id}/${test ? 'test' : 'calistir'}',
+      final data = await (widget.api ?? apiIstemcisi).iste(
+        'egitimler/${_ders!.id}/gorevler/${g.no}/${test ? 'test' : 'calistir'}',
         veri: {'kod': _kod.text},
       );
-      if (mounted && istek == _istek) {
-        setState(() => _sonuc = sonuc as Map<String, dynamic>);
+      final sonuc = GorevSonucu.fromJson(data as Map<String, dynamic>);
+      if (sonuc.no != g.no) {
+        throw const FormatException('Görev eşleşmiyor');
+      }
+      if (mounted && istek == _istek && _gorev?.id == g.id) {
+        setState(() => _sonuc = sonuc);
       }
     } on ApiHatasi catch (e) {
       if (mounted && istek == _istek) {
@@ -110,10 +148,12 @@ class _DersEkraniState extends State<DersEkrani> {
       }
     } catch (_) {
       if (mounted && istek == _istek) {
-        setState(() => _hata = 'Sonuç alınamadı. Lütfen tekrar deneyin.');
+        setState(() => _hata = 'Görev sonucu okunamadı. Tekrar deneyin.');
       }
     } finally {
-      if (mounted) setState(() => _calisiyor = false);
+      if (mounted) {
+        setState(() => _calisiyor = false);
+      }
     }
   }
 
@@ -126,6 +166,7 @@ class _DersEkraniState extends State<DersEkrani> {
 
   @override
   Widget build(BuildContext context) {
+    final g = _gorev;
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(widget.ozet.kod)),
@@ -135,12 +176,11 @@ class _DersEkraniState extends State<DersEkrani> {
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
               children: [
                 Text(widget.ozet.baslik, style: theme.textTheme.headlineMedium),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 if (_girisGerekli) ...[
                   Text(widget.ozet.ozet),
                   const SizedBox(height: 16),
                   const Text('Bu derse devam etmek için hesabınla giriş yap.'),
-                  const SizedBox(height: 16),
                   FilledButton(
                     onPressed: () =>
                         Navigator.pushNamed(context, Rotalar.giris),
@@ -148,174 +188,274 @@ class _DersEkraniState extends State<DersEkrani> {
                   ),
                 ] else if (_ders == null) ...[
                   Text(_hata ?? 'Ders yüklenemedi.'),
-                  const SizedBox(height: 16),
                   FilledButton(
                     onPressed: _yukle,
                     child: const Text('Tekrar dene'),
                   ),
                 ] else ...[
                   if (_ders!.misafireAcik && !oturumServisi.girisYapildi)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 20),
-                      child: Text(
-                        'İlk ders · Misafir olarak okuyabilir, kod çalıştırabilir ve test edebilirsin.',
-                      ),
+                    const Text(
+                      'İlk ders · Misafir olarak okuyabilir, kod çalıştırabilir ve test edebilirsin.',
                     ),
-                  MarkdownBody(data: _ders!.icerikMarkdown, selectable: true),
-                  const SizedBox(height: 28),
-                  const Divider(),
-                  const SizedBox(height: 20),
-                  Text('Kod çalışması', style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Python · Kodunu düzenle, çıktıyı incele ve görevleri test et.',
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    key: const ValueKey('kodEditoru'),
-                    controller: _kod,
-                    enabled: !_calisiyor,
-                    minLines: 10,
-                    maxLines: null,
-                    maxLength: 32000,
-                    keyboardType: TextInputType.multiline,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 14,
-                      height: 1.6,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'calisma.py',
-                      alignLabelWithHint: true,
-                    ),
-                    onChanged: (_) {
-                      if (_sonuc != null) setState(() => _sonuc = null);
-                    },
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: _calisiyor
-                          ? null
-                          : () {
-                              final selection = _kod.selection;
-                              final start = selection.isValid
-                                  ? selection.start
-                                  : _kod.text.length;
-                              final end = selection.isValid
-                                  ? selection.end
-                                  : start;
-                              _kod.value = TextEditingValue(
-                                text: _kod.text.replaceRange(
-                                  start,
-                                  end,
-                                  '    ',
-                                ),
-                                selection: TextSelection.collapsed(
-                                  offset: start + 4,
-                                ),
-                              );
-                              setState(() => _sonuc = null);
-                            },
-                      icon: const Icon(Icons.format_indent_increase),
-                      label: const Text('4 boşluk ekle'),
-                    ),
-                  ),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
+                  ExpansionTile(
+                    title: const Text('Ders içeriği'),
+                    tilePadding: EdgeInsets.zero,
                     children: [
-                      FilledButton.icon(
-                        key: const ValueKey('kodCalistir'),
-                        onPressed: _calisiyor ? null : () => _calistir(false),
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('Çalıştır'),
-                      ),
-                      OutlinedButton.icon(
-                        key: const ValueKey('kodTest'),
-                        onPressed: _calisiyor ? null : () => _calistir(true),
-                        icon: const Icon(Icons.fact_check_outlined),
-                        label: const Text('Test et'),
+                      MarkdownBody(
+                        data: _ders!.icerikMarkdown,
+                        selectable: true,
                       ),
                     ],
                   ),
-                  if (_calisiyor)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          LinearProgressIndicator(),
-                          SizedBox(height: 8),
-                          Text('Kodun çalıştırılıyor…'),
-                        ],
-                      ),
+                  const SizedBox(height: 20),
+                  Text('Görevler', style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final item in _ders!.gorevler)
+                        ChoiceChip(
+                          key: ValueKey('gorev_${item.id}'),
+                          label: Text('${item.no}. ${item.baslik}'),
+                          selected: g?.id == item.id,
+                          onSelected: _calisiyor
+                              ? null
+                              : (_) => setState(() => _sec(item)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  if (g == null)
+                    const Text(
+                      'Görev bilgileri henüz hazır değil. İçeriğin aktarılması gerekiyor.',
                     ),
-                  if (_hata != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        _hata!,
-                        style: TextStyle(color: theme.colorScheme.error),
-                      ),
-                    ),
-                  if (_sonuc != null) ...[
-                    const SizedBox(height: 24),
+                  if (g != null) ...[
                     Text(
-                      _sonuc!['basarili'] == true &&
-                              _sonuc!['durum'] == 'tamamlandi'
-                          ? 'Çalışma tamamlandı'
-                          : switch (_sonuc!['durum']) {
-                              'zaman_asimi' => 'Süre sınırı aşıldı',
-                              'test_yok' => 'Otomatik test bulunamadı',
-                              _ => 'Kodunu gözden geçir',
-                            },
+                      'Görev ${g.no} · ${g.baslik}',
                       style: theme.textTheme.titleLarge,
                     ),
                     const SizedBox(height: 12),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: SelectableText(
-                          '${_sonuc!['cikti'] ?? ''}${(_sonuc!['hata'] as String? ?? '').isEmpty ? '' : '\n${_sonuc!['hata']}'}'
-                                  .trim()
-                                  .isEmpty
-                              ? 'Kod çıktı üretmedi.'
-                              : '${_sonuc!['cikti'] ?? ''}\n${_sonuc!['hata'] ?? ''}'
-                                    .trim(),
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 13,
+                    MarkdownBody(data: g.aciklama, selectable: true),
+                    const SizedBox(height: 20),
+                    if (g.tur == 'aciklama')
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            'Açıklama görevi · Yanıtını dersin kabul ölçütlerine göre değerlendir. Bu görev otomatik test edilmez.',
                           ),
                         ),
+                      )
+                    else if (!g.kodGorevi) ...[
+                      const Text(
+                        'Bu görev için güncel içerik aktarımı gerekiyor. Kod çalıştırma ve test kullanılamıyor.',
                       ),
-                    ),
-                    for (final g in (_sonuc!['gorevler'] as List? ?? []))
-                      Card(
-                        child: ListTile(
-                          leading: Icon(
-                            g['durum'] == 'basarili'
-                                ? Icons.check_circle_outline
-                                : g['durum'] == 'basarisiz'
-                                ? Icons.error_outline
-                                : Icons.info_outline,
-                          ),
-                          title: Text('Görev ${g['no']}'),
-                          subtitle: Text(switch (g['durum']) {
-                            'basarili' => 'Testler geçti',
-                            'basarisiz' => 'Testler geçmedi',
-                            'atlanmis' => 'Test atlandı',
-                            _ =>
-                              'Otomatik test yok; dersin kabul ölçütlerini kontrol et.',
-                          }),
+                      TextButton(
+                        onPressed: _calisiyor ? null : _yukle,
+                        child: const Text('Dersi yeniden yükle'),
+                      ),
+                    ] else ...[
+                      TextField(
+                        key: ValueKey('kodEditoru'),
+                        controller: _kod,
+                        enabled: !_calisiyor,
+                        minLines: 8,
+                        maxLines: null,
+                        maxLength: 32000,
+                        keyboardType: TextInputType.multiline,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 14,
+                          height: 1.6,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: g.baslangicDosyasi,
+                          alignLabelWithHint: true,
+                        ),
+                        onChanged: (_) => setState(() => _sonuc = null),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: _calisiyor
+                              ? null
+                              : () {
+                                  final sel = _kod.selection;
+                                  final start = sel.isValid
+                                      ? sel.start
+                                      : _kod.text.length;
+                                  final end = sel.isValid ? sel.end : start;
+                                  if (_kod.text.length - (end - start) + 4 >
+                                      32000) {
+                                    return;
+                                  }
+                                  _kod.value = TextEditingValue(
+                                    text: _kod.text.replaceRange(
+                                      start,
+                                      end,
+                                      '    ',
+                                    ),
+                                    selection: TextSelection.collapsed(
+                                      offset: start + 4,
+                                    ),
+                                  );
+                                  setState(() => _sonuc = null);
+                                },
+                          icon: const Icon(Icons.format_indent_increase),
+                          label: const Text('4 boşluk ekle'),
                         ),
                       ),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          FilledButton.icon(
+                            key: ValueKey('kodCalistir'),
+                            onPressed: _calisiyor
+                                ? null
+                                : () => _calistir(false),
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('Çalıştır'),
+                          ),
+                          OutlinedButton.icon(
+                            key: ValueKey('kodTest'),
+                            onPressed: _calisiyor
+                                ? null
+                                : () => _calistir(true),
+                            icon: const Icon(Icons.fact_check_outlined),
+                            label: const Text('Test et'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Taslaklar görevler arasında korunur; bu ders ekranını kapatınca silinir.',
+                      ),
+                      if (_calisiyor)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          child: LinearProgressIndicator(),
+                        ),
+                      if (_hata != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            _hata!,
+                            style: TextStyle(color: theme.colorScheme.error),
+                          ),
+                        ),
+                      if (_sonuc != null)
+                        _Sonuc(
+                          sonuc: _sonuc!,
+                          kontrol: g.kontrol!,
+                          test: _testSonucu,
+                        ),
+                    ],
                   ],
                 ],
               ],
             ),
     );
   }
+}
+
+class _Sonuc extends StatelessWidget {
+  final GorevSonucu sonuc;
+  final GorevKontrolu kontrol;
+  final bool test;
+  const _Sonuc({
+    required this.sonuc,
+    required this.kontrol,
+    required this.test,
+  });
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const SizedBox(height: 24),
+      Text(switch (sonuc.durum) {
+        'zaman_asimi' => 'Süre sınırı aşıldı',
+        'cikti_siniri' => 'Çıktı sınırı aşıldı',
+        _ =>
+          test
+              ? (sonuc.testGecti ? 'Test geçti' : 'Test geçmedi')
+              : (sonuc.basarili && sonuc.durum == 'tamamlandi'
+                    ? 'Çalıştırma tamamlandı'
+                    : 'Çalıştırma tamamlanamadı'),
+      }, style: Theme.of(context).textTheme.titleLarge),
+      if (!test)
+        const Text('Çalıştırma sonucu; test değerlendirmesi yapılmadı.'),
+      const SizedBox(height: 12),
+      if (test)
+        _Cikti(
+          baslik: 'Beklenen çıktı',
+          metin: kontrol.beklenenCikti,
+          anahtar: 'beklenenCikti',
+        ),
+      _Cikti(
+        baslik: 'Program çıktısı',
+        metin: sonuc.cikti,
+        anahtar: 'gercekCikti',
+      ),
+      if (sonuc.hata.isNotEmpty)
+        _Cikti(
+          baslik: 'Hata çıktısı',
+          metin: sonuc.hata,
+          anahtar: 'hataCiktisi',
+        ),
+      Text('Çıkış kodu: ${sonuc.cikisKodu ?? 'Alınamadı'}'),
+      if (test) ...[
+        Text('Beklenen çıkış kodu: ${kontrol.beklenenCikisKodu}'),
+        Text('Çıktı: ${_eslesme(sonuc.ciktiEslesiyor)}'),
+        Text('Çıkış kodu kontrolü: ${_eslesme(sonuc.cikisKoduEslesiyor)}'),
+        for (final kural in sonuc.kuralIhlalleri) Text('Kural ihlali: $kural'),
+      ],
+    ],
+  );
+  String _eslesme(bool? deger) => deger == null
+      ? 'Değerlendirilemedi'
+      : deger
+      ? 'Eşleşiyor'
+      : 'Eşleşmiyor';
+}
+
+class _Cikti extends StatelessWidget {
+  final String baslik, metin, anahtar;
+  const _Cikti({
+    required this.baslik,
+    required this.metin,
+    required this.anahtar,
+  });
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(baslik, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          if (metin.isEmpty) const Text('Çıktı boş.'),
+          SelectableText(
+            metin,
+            key: ValueKey(anahtar),
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          ),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Boşlukları ve satır sonlarını göster'),
+            children: [
+              SelectableText(
+                jsonEncode(metin),
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 }

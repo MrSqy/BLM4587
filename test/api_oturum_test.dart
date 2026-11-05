@@ -51,7 +51,7 @@ void main() {
     },
   );
 
-  for (final kod in [401, 403, 429, 503]) {
+  for (final kod in [401, 403, 409, 429, 503]) {
     test('$kod için mesaj ve doğru oturum temizleme davranışı', () async {
       final depo = BellekDeposu()..veri = jsonEncode(oturumYaniti());
       final api = ApiIstemcisi(
