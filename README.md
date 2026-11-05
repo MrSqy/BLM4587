@@ -39,15 +39,33 @@ flutter test
   rakam ve özel karakter içerir. JWT ömrü 15 dakika, refresh token yoktur.
 - Token, bitiş ve kullanıcı bilgileri `flutter_secure_storage` içinde saklanır;
   `shared_preferences` yalnız `oturum_acik` boolean değerini taşır. Parola saklanmaz.
-  Android yedeklemesi kapalıdır. Süre bitimi/401 oturumu temizler; 403/429/503 temizlemez.
+  Android yedeklemesi kapalıdır. Süre bitimi/401 oturumu temizler; 403/409/429/503 temizlemez.
   Başarılı çıkış backend'de hesabın eski JWT'lerini iptal eder, cihaz kaydını siler.
   Ağ hatasıyla başarısız çıkış, başarı gibi gösterilmez.
-- Kod editörü 32000 karakter sınırı ve girinti düğmesi içerir. Çalıştır ve Test et
-  yalnız öğrenci kodunu gönderir; test kodu sunucuda kalır. Görev sonuçları,
-  atlanan/otomatik testi olmayan görevler, zaman aşımı ve servis hataları ayrılır.
+- Kod editörü 32000 karakter sınırı ve girinti düğmesi içerir. Görev seçimiyle her görevin kendi başlangıç dosyası/kodu açılır.
+  Taslaklar gerçek ders ID + görev ID anahtarlarıyla bu açık ders ekranı boyunca
+  korunur; boş taslak da geri gelir. Ekran kapatılınca veya oturum değişince silinir.
+  Çalıştır ve Test et yalnız öğrenci kodunu görev numaralı v2 endpoint'e gönderir.
+  Açıklama görevlerinde editör/otomatik test yoktur. Eski pytest veya kontrolsüz
+  görevlerde aktarım gerekli mesajı gösterilir; eski ders endpoint'leri çağrılmaz.
+  Gerçek/beklenen stdout ve çıkış kodu ayrı gösterilir; boşluk ve son satır sonu
+  korunur. İsteğe bağlı JSON görünümü görünmez karakterleri açığa çıkarır.
+  Çalıştırma bir test başarısı değildir. Zaman aşımı, çıktı sınırı, kural ihlali ve
+  eşleşme alanlarının null olması başarısız/değerlendirilemedi olarak sunulur.
 - `{mesaj}`, ProblemDetails `title/errors` ve boş HTTP hata yanıtları desteklenir.
   Notebook modeli ve görüntüleyici bileşeni korunur; API dersleri gerçek Markdown
   içeriğini gösterir, her ders yerine aynı örnek notebook açılmaz.
+
+### Görev bazlı v2 içerik önkoşulu
+
+Backend'de görev şeması migration'ı ve v2 PY-01 aktarımı kullanıcı tarafından
+uygulanmalıdır. Yalnız kodu güncellemek eski DB'yi dönüştürmez. Ayrıntılar BLM4581
+`docs/GOREV_AKTARIMI_V2.md` belgesindedir. Mobil detayda 1–5 kod ve 6–7 açıklama,
+`tur`, `baslangicDosyasi`, `baslangicKodu`, `kontrol` alanları görülmelidir.
+Görev 8 pasif olmalı ve mobil yanıtta gelmemelidir. Desteklenen çalışma biçimi
+bağımsız Python programı ve sunucuda kayıtlı stdin/stdout kontrolüdür; ek modül/veri
+paketi gerektiren dersler bu sözleşmeyle eksiksiz çalışır kabul edilmez.
+Nisa'nın `tools/egitim_icerik` üreticisi bu değişiklikte düzenlenmedi.
 
 ### API adresi ve yerel çalıştırma
 

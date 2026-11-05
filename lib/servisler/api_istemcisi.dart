@@ -132,6 +132,8 @@ class ApiIstemcisi {
       503 => 'Servis şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.',
       400 => 'Bilgilerinizi kontrol edip tekrar deneyin.',
       404 => 'İstenen içerik bulunamadı.',
+      409 =>
+        'Görev içeriği güncellenmeli. Dersi yeniden yükleyip tekrar deneyin.',
       _ => 'İşlem tamamlanamadı. Lütfen tekrar deneyin.',
     };
   }

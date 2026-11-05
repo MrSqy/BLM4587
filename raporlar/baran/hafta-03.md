@@ -74,3 +74,47 @@ Doğrulama sonrasında Flutter dalını gönderme:
 cd /home/baranbeey/dev/BLM4587-proje
 git push origin baran
 ```
+
+## 6 Kasım 2026 — Görev bazlı v2 uyarlaması
+
+- Backend'in GOREV_AKTARIMI_V2.md ve FLUTTER_DEVAM_PROMPTU.txt sözleşmeleri
+  salt okunur incelendi. Backend dosyaları ve Nisa'nın tools/egitim_icerik aracı
+  değiştirilmedi. Bu çalışma yalnız Flutter baran dalındadır.
+- Gorev modeline tur, baslangicDosyasi, baslangicKodu ve tipli kontrol bilgisi;
+  görev yanıtları için tipli GorevSonucu eklendi. Eksik tür eski-pytest kabul
+  edilir; v2 çalışmış gibi gösterilmez.
+- Görev seçimi, seçilen dosya/kod ve ders ID + gerçek görev ID anahtarlı bellek
+  taslakları eklendi. Boş taslak korunur. Taslaklar görev geçişinde korunur;
+  ders ekranı kapanınca/oturum değişince temizlenir, kalıcı taslak kaydı yoktur.
+- Görev isteği URL'si gerçek ders ID ve görev NO kullanır; görev ID ile NO
+  karıştırılmaz. Body yalnız {kod}; beklenen çıktı/girdi/dosya/kurallar gönderilmez.
+  Ders düzeyindeki eski calistir/test uçları bu ekranda artık çağrılmaz.
+- Açıklama görevinde Markdown/kabul ölçütleri gösterilir; editör, çalıştır/test
+  veya otomatik başarılı etiketi yoktur. Eski-pytest, bilinmeyen/kontrolsüz görev
+  için güncel içerik aktarımı mesajı ve yeniden yükleme seçeneği vardır.
+- Çalıştır sonucu test başarısı değildir. Beklenen/gerçek stdout ve stderr
+  trim/normalizasyon olmadan ayrı gösterilir. İsteğe bağlı JSON görünümü boşluk
+  ve satır sonlarını açıklar. Null eşleşmeler değerlendirilemedi olarak sunulur.
+  Çıkış kodu, sıfır dışındaki beklenen kod, kural ihlali, timeout ve çıktı limiti
+  ayrı gösterilir. Başarı etiketi ancak sunucunun tutarlı başarılı testiyle gelir.
+- Oturum değişiminde eski istek sonucu ekrana dönmez; devam eden gönderimde
+  görev seçimi ve çift gönderim engellenir. 409 için açıklayıcı varsayılan mesaj
+  eklendi; 403/409/429/503 yerel oturumu temizlemez.
+
+Doğrulama:
+
+- flutter analyze --no-pub: No issues found.
+- flutter test --no-pub: 71 test başarılı. Model JSON turu, doğru görev dosyası,
+  ID/NO ayrımı, taslak koruma, açıklama/legacy akışı, yalnız kod gönderimi,
+  başarılı/başarısız çıktı ve exit, timeout/çıktı sınırı, misafir/üye, çıkış,
+  401/403/409/429/503 ve iki temada büyük yazı regresyonları dahil.
+- flutter build bundle --debug --no-pub: başarılı.
+- git diff --check: başarılı.
+- HTTP yanıtları ve oturum deposu testlerde taklittir. Gerçek Android APK,
+  emülatör/telefon ve canlı v2 API/DB kabulü bu uyarlamada yapılmadı.
+- Mevcut kullanıcı DB'sine migration ve PY-01 v2 aktarımı kullanıcı tarafından
+  uygulanmalı. API'de 5 kod + 2 açıklama, yeni alanlar ve pasif eski 8'in
+  yokluğu görülmeden gerçek içerikle uçtan uca tamamlandı kabul edilmeyecek.
+- Ek veri/modül isteyen görevlerin paketlenmesi v2 dışında; destekleniyor
+  iddiası yoktur. Backend PR birleştirmesi kullanıcı tarafından yürütülecek.
+- Flutter yerel checkpoint commit; push/PR kullanıcıya bırakıldı. Ağ kurulumu yok.
