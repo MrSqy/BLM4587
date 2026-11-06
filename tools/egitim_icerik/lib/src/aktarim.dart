@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import '../egitim_icerik.dart' show dersKlasorleriniBul, metinOku;
 import 'markdown.dart';
+import 'icerik_birlestir.dart';
 import 'python.dart';
 
 export 'markdown.dart' show markdownIsle;
@@ -46,13 +47,28 @@ Map<String, dynamic> _dosyalariOku(Directory dizin) {
   return sonuc;
 }
 
-Map<String, dynamic> egitimleriAktar(String kaynak) {
+Map<String, dynamic> egitimleriAktar(
+  String kaynak, {
+  Set<String>? dersKodlari,
+}) {
   final uyarilar = <String>[];
   final egitimler = <Map<String, dynamic>>[];
   final dersNumaralari = <int>{};
   var gorevId = 0;
-  for (final ders in dersKlasorleriniBul(kaynak)) {
+  final bulunan = dersKlasorleriniBul(kaynak);
+  if (dersKodlari != null) {
+    final eksik = dersKodlari.difference(
+      bulunan.map((d) => p.basename(d.path)).toSet(),
+    );
+    if (eksik.isNotEmpty || dersKodlari.isEmpty) {
+      throw FormatException(
+        'Ders seçimi boş veya kaynakta bulunamadı: ${eksik.join(', ')}',
+      );
+    }
+  }
+  for (final ders in bulunan) {
     final kod = p.basename(ders.path);
+    if (dersKodlari != null && !dersKodlari.contains(kod)) continue;
     final sira = int.parse(kod.substring(3));
     if (!dersNumaralari.add(sira)) {
       throw FormatException(
@@ -125,7 +141,12 @@ Map<String, dynamic> egitimleriAktar(String kaynak) {
     egitimler.add({
       'id': sira, 'kategoriId': 1, 'kod': kod, 'sira': sira,
       'baslik': baslikEs?[1] ?? baslik,
-      'icerikMarkdown': markdown['ALISTIRMALAR.md'],
+      'icerikMarkdown': dersMetniniBirlestir(
+        kod: kod,
+        baslik: baslikEs?[1] ?? baslik,
+        markdown: markdown,
+        uyar: uyar,
+      ),
       'baslangicKodu': oku('calisma.py', zorunlu: false),
       // Tam test modülleri, importlar, fixture'lar ve yardımcılar korunur.
       'testKodu': dosyalar['test_alistirmalar.py']?['icerik'] ?? '',

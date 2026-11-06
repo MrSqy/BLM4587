@@ -1,12 +1,18 @@
 import 'dart:io';
+import 'package:egitim_icerik/src/yukleme_komutu.dart';
 import 'package:egitim_icerik/egitim_icerik.dart';
 
-void main(List<String> arguments) {
+Future<void> main(List<String> arguments) async {
+  if (arguments.isNotEmpty && arguments.first == 'yukle') {
+    exitCode = await yuklemeKomutu(arguments.skip(1).toList());
+    return;
+  }
   const yardim =
       'Kullanım: dart run bin/egitim_icerik.dart <kaynak-klasoru> <cikti.json>\n'
       'Yalnız kaynak verilirse dersleri listeler. --help: bu yardım. Python çalıştırılmaz.';
   if (arguments.length == 1 && {'--help', '-h'}.contains(arguments.first)) {
     stdout.writeln(yardim);
+    stdout.writeln(yuklemeYardimi);
     return;
   }
   if (arguments.isEmpty ||
