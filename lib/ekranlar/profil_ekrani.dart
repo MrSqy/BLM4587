@@ -94,6 +94,13 @@ class _ProfilEkraniState extends State<ProfilEkrani> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.pushNamed(context, Rotalar.hakkinda),
         ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.description_outlined),
+          title: const Text('Örnek notebook'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pushNamed(context, Rotalar.ornekNotebook),
+        ),
       ],
     ),
   );

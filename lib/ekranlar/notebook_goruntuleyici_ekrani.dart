@@ -1,9 +1,54 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../modeller/notebook.dart';
+import 'notebook_ciktilari.dart';
+
+/// Uygulamaya gömülü örnek notebook'u açar. Notebook API'si gelene kadar
+/// kayıtlı çıktıların gösterimini denemek içindir.
+class OrnekNotebookEkrani extends StatefulWidget {
+  final Future<NotebookBelgesi> Function()? yukleyici;
+
+  const OrnekNotebookEkrani({super.key, this.yukleyici});
+
+  @override
+  State<OrnekNotebookEkrani> createState() => _OrnekNotebookEkraniState();
+}
+
+class _OrnekNotebookEkraniState extends State<OrnekNotebookEkrani> {
+  late final Future<NotebookBelgesi> _notebook =
+      (widget.yukleyici ?? _varsayilanYukleyici)();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<NotebookBelgesi>(
+      future: _notebook,
+      builder: (context, durum) {
+        if (durum.hasData) {
+          return NotebookGoruntuleyiciEkrani(
+            notebook: durum.data!,
+            baslik: 'Örnek notebook',
+          );
+        }
+        return Scaffold(
+          appBar: AppBar(title: const Text('Örnek notebook')),
+          body: Center(
+            child: durum.hasError
+                ? const Text('Notebook açılamadı.')
+                : const CircularProgressIndicator(),
+          ),
+        );
+      },
+    );
+  }
+
+  static Future<NotebookBelgesi> _varsayilanYukleyici() => rootBundle
+      .loadString('assets/ornek_notebook.ipynb')
+      .then(NotebookBelgesi.fromJsonString);
+}
 
 class NotebookGoruntuleyiciEkrani extends StatelessWidget {
   final NotebookBelgesi notebook;
@@ -151,6 +196,7 @@ class _KodHucresiKarti extends StatelessWidget {
               ),
             ),
           ),
+          NotebookCiktilari(ciktilar: hucre.ciktilar),
         ],
       ),
     );
