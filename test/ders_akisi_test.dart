@@ -71,6 +71,7 @@ class DersServisi implements EgitimServisi {
   int detayIstegi = 0;
   Egitim? ders;
   bool uye = false;
+  bool oturumKontrolu = false;
   @override
   Future<List<Kategori>> kategorileriGetir() async => [
     const Kategori(id: 1, ad: 'Python', kisaltma: 'PY'),
@@ -84,6 +85,9 @@ class DersServisi implements EgitimServisi {
   Future<Egitim?> egitimGetir(int id) async {
     detayIstegi++;
     if (id == 7) {
+      if (oturumKontrolu && !oturumServisi.girisYapildi) {
+        throw const ApiHatasi('Giriş gerekli.', 401);
+      }
       return ders ?? acik;
     }
     if (!uye) {
@@ -347,7 +351,7 @@ void main() {
     },
   );
   testWidgets(
-    'çalıştır isteği beklerken çift gönderim engellenir; 503 yeniden denemeye izin verir',
+    'çalıştırma 20 saniyeyi geçebilir; çift gönderim engellenir ve 503 sonrası düğme açılır',
     (tester) async {
       final cevap = Completer<http.Response>();
       var sayi = 0;
@@ -373,6 +377,8 @@ void main() {
       await tester.pump();
       expect(tester.widget<FilledButton>(dugme).onPressed, isNull);
       expect(sayi, 1);
+      await tester.pump(const Duration(seconds: 21));
+      expect(tester.widget<FilledButton>(dugme).onPressed, isNull);
       cevap.complete(http.Response('', 503));
       await tester.pumpAndSettle();
       expect(tester.widget<FilledButton>(dugme).onPressed, isNotNull);
@@ -404,6 +410,79 @@ void main() {
     expect(find.text('Üyeye özel içerik'), findsNothing);
     expect(find.text('Giriş yap'), findsOneWidget);
   });
+  for (final misafireAcik in [true, false]) {
+    testWidgets(
+      'oturum süresi dolunca taslaklar korunur (misafir erişimi: $misafireAcik)',
+      (tester) async {
+        tester.view.physicalSize = const Size(900, 1600);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        var simdi = DateTime.utc(2026, 11, 12);
+        oturumServisi.dispose();
+        oturumServisi = OturumServisi(
+          ApiIstemcisi(
+            istemci: MockClient(
+              (_) async => jsonYanit(
+                oturumYaniti(bitis: simdi.add(const Duration(minutes: 15))),
+              ),
+            ),
+          ),
+          BellekDeposu(),
+          simdi: () => simdi,
+        );
+        await oturumServisi.giris('ogrenci@ornek.com', 'Deneme123!');
+        final ders = Egitim(
+          id: acik.id,
+          kategoriId: acik.kategoriId,
+          kod: acik.kod,
+          baslik: acik.baslik,
+          erisilebilir: true,
+          misafireAcik: misafireAcik,
+          gorevler: acik.gorevler,
+        );
+        final servis = DersServisi()
+          ..ders = ders
+          ..oturumKontrolu = !misafireAcik;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DersEkrani(ozet: ders, servis: servis),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final editor = find.byKey(const ValueKey('kodEditoru'));
+        final birinci = find.byKey(const ValueKey('gorev_101'));
+        final ikinci = find.byKey(const ValueKey('gorev_203'));
+        await tester.enterText(editor, '  ilk taslak\n');
+        await tester.tap(ikinci);
+        await tester.pumpAndSettle();
+        await tester.enterText(editor, 'ikinci taslak');
+
+        simdi = simdi.add(const Duration(minutes: 15));
+        await tester.pump(const Duration(minutes: 15));
+        await tester.pumpAndSettle();
+        expect(oturumServisi.girisYapildi, isFalse);
+        if (!misafireAcik) {
+          expect(editor, findsNothing);
+          expect(find.text('Giriş yap'), findsOneWidget);
+          await oturumServisi.giris('ogrenci@ornek.com', 'Deneme123!');
+          await tester.pumpAndSettle();
+        }
+        expect(tester.widget<ChoiceChip>(ikinci).selected, isTrue);
+        expect(
+          tester.widget<TextField>(editor).controller!.text,
+          'ikinci taslak',
+        );
+        await tester.tap(birinci);
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<TextField>(editor).controller!.text,
+          '  ilk taslak\n',
+        );
+      },
+    );
+  }
+
   for (final tema in [acikTema, koyuTema]) {
     testWidgets('dar yatay görünüm ve büyük yazı ${tema.brightness}', (
       tester,

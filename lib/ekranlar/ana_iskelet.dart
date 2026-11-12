@@ -23,27 +23,29 @@ class _AnaIskeletState extends State<AnaIskelet> {
     'Profil',
   ];
 
-  // IndexedStack sekmeler arasında geçerken ekranların durumunu korur.
-  late final List<Widget> _sayfalar = [
-    AnaSayfa(
-      kategoriSec: (id) => setState(() {
-        _sayfalar[1] = EgitimlerEkrani(
-          key: ValueKey(id),
-          baslangicKategoriId: id,
-        );
-        _seciliIndeks = 1;
-      }),
-    ),
-    const EgitimlerEkrani(),
-    const IlerlemeEkrani(),
-    const ProfilEkrani(),
-  ];
+  Widget _egitimler = const EgitimlerEkrani();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_basliklar[_seciliIndeks])),
-      body: IndexedStack(index: _seciliIndeks, children: _sayfalar),
+      body: IndexedStack(
+        index: _seciliIndeks,
+        children: [
+          AnaSayfa(
+            kategoriSec: (id) => setState(() {
+              _egitimler = EgitimlerEkrani(
+                key: ValueKey(id),
+                baslangicKategoriId: id,
+              );
+              _seciliIndeks = 1;
+            }),
+          ),
+          _egitimler,
+          IlerlemeEkrani(etkin: _seciliIndeks == 2),
+          const ProfilEkrani(),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _seciliIndeks,
         onDestinationSelected: (indeks) =>

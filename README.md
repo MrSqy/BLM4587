@@ -44,7 +44,9 @@ flutter test
   Ağ hatasıyla başarısız çıkış, başarı gibi gösterilmez.
 - Kod editörü 32000 karakter sınırı ve girinti düğmesi içerir. Görev seçimiyle her görevin kendi başlangıç dosyası/kodu açılır.
   Taslaklar gerçek ders ID + görev ID anahtarlarıyla bu açık ders ekranı boyunca
-  korunur; boş taslak da geri gelir. Ekran kapatılınca veya oturum değişince silinir.
+  korunur. Oturum süresi dolduğunda misafire açık derste editör taslağıyla açılır.
+  Korunan derste aynı hesapla tekrar giriş yapılınca taslak geri gelir.
+  Farklı hesapların taslakları ayrı tutulur. Ekran kapatılınca bellekteki taslaklar silinir.
   Çalıştır ve Test et yalnız öğrenci kodunu görev numaralı v2 endpoint'e gönderir.
   Açıklama görevlerinde editör/otomatik test yoktur. Eski pytest veya kontrolsüz
   görevlerde aktarım gerekli mesajı gösterilir; eski ders endpoint'leri çağrılmaz.
@@ -55,6 +57,21 @@ flutter test
 - `{mesaj}`, ProblemDetails `title/errors` ve boş HTTP hata yanıtları desteklenir.
   Notebook modeli ve görüntüleyici bileşeni korunur; API dersleri gerçek Markdown
   içeriğini gösterir, her ders yerine aynı örnek notebook açılmaz.
+
+### Gönderim geçmişi (4.1)
+
+İlerleme sekmesi, oturum sahibinin son gönderimlerini ve kod/çıktı ayrıntısını
+`GET /api/gonderimler` ve `GET /api/gonderimler/{id}` uçlarından alır.
+Liste sayfalıdır ve sekmeye dönünce yenilenir. Bu uçlar `/api/mobil` altında
+değildir. Backend'de `GonderimGecmisi` migration'ı uygulanmış olmalıdır.
+Bu sürümün İlerleme sekmesi gönderim geçmişini gösterir. Ders tamamlama oranı
+5.1 API’siyle bağlanacaktır.
+
+Çalıştır ve Test et istekleri varsayılan olarak 60 saniye bekler. Bu süre
+4.4 kuyruğunun 15 saniye bekleme, 30 saniye işlem sınırı ve 15 saniye yanıt
+payını kapsar. Sunucu sınırları değişirse mobil derlemede
+`--dart-define=KOD_ZAMAN_ASIMI_SANIYE=<saniye>` ile ayarlayın.
+Diğer istekler mevcut 20 saniyelik süreyi kullanır.
 
 ### Görev bazlı v2 içerik önkoşulu
 

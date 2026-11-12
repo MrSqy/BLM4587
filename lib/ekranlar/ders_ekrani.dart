@@ -20,8 +20,13 @@ class DersEkrani extends StatefulWidget {
 
 class _DersEkraniState extends State<DersEkrani> {
   final _kod = TextEditingController();
+  late final _oturum = oturumServisi;
   // Yalnız bu açık ders oturumu boyunca; sunucu görev numarası değil gerçek ID.
-  final Map<(int, int), String> _taslaklar = {};
+  final _taslaklar = <String?, Map<(int, int), String>>{};
+  String? _taslakSahibi;
+  int? _seciliGorevId;
+  Map<(int, int), String> get _etkinTaslaklar =>
+      _taslaklar.putIfAbsent(_taslakSahibi, () => {});
   Egitim? _ders;
   Gorev? _gorev;
   GorevSonucu? _sonuc;
@@ -34,39 +39,49 @@ class _DersEkraniState extends State<DersEkrani> {
   @override
   void initState() {
     super.initState();
-    oturumServisi.addListener(_oturumDegisti);
+    _taslakSahibi = _oturum.kullaniciId;
+    _oturum.addListener(_oturumDegisti);
     _yukle();
   }
 
   void _oturumDegisti() {
-    _taslaklar.clear();
-    _kod.clear();
-    _gorev = null;
-    _sonuc = null;
+    final yeniSahip = _oturum.kullaniciId;
+    if (yeniSahip != null && yeniSahip != _taslakSahibi) {
+      _taslagiSakla();
+      if (_taslakSahibi == null) {
+        _taslaklar[yeniSahip] = _taslaklar.remove(null) ?? {};
+      }
+      _taslakSahibi = yeniSahip;
+      _gorev = null;
+    }
     _yukle();
   }
 
-  void _sec(Gorev g) {
-    if (_gorev != null && _ders != null) {
-      _taslaklar[(_ders!.id, _gorev!.id)] = _kod.text;
+  void _taslagiSakla() {
+    if (_ders != null && _gorev != null) {
+      _etkinTaslaklar[(_ders!.id, _gorev!.id)] = _kod.text;
     }
+  }
+
+  void _sec(Gorev g) {
+    _taslagiSakla();
     _gorev = g;
-    _kod.text = _taslaklar[(_ders!.id, g.id)] ?? g.baslangicKodu;
+    _seciliGorevId = g.id;
+    _kod.text = _etkinTaslaklar[(_ders!.id, g.id)] ?? g.baslangicKodu;
     _sonuc = null;
     _hata = null;
   }
 
   Future<void> _yukle() async {
     final istek = ++_istek;
-    final onceki = _gorev?.id;
-    if (_ders != null && _gorev != null) {
-      _taslaklar[(_ders!.id, _gorev!.id)] = _kod.text;
-    }
+    final onceki = _seciliGorevId;
+    _taslagiSakla();
     setState(() {
       _ders = null;
       _gorev = null;
       _sonuc = null;
       _yukleniyor = true;
+      _calisiyor = false;
       _hata = null;
       _girisGerekli = false;
     });
@@ -128,9 +143,10 @@ class _DersEkraniState extends State<DersEkrani> {
       _testSonucu = test;
     });
     try {
-      final data = await (widget.api ?? apiIstemcisi).iste(
+      final data = await (widget.api ?? _oturum.api).iste(
         'egitimler/${_ders!.id}/gorevler/${g.no}/${test ? 'test' : 'calistir'}',
         veri: {'kod': _kod.text},
+        zamanAsimi: ApiIstemcisi.kodZamanAsimi,
       );
       final sonuc = GorevSonucu.fromJson(data as Map<String, dynamic>);
       if (sonuc.no != g.no) {
@@ -151,7 +167,7 @@ class _DersEkraniState extends State<DersEkrani> {
         setState(() => _hata = 'Görev sonucu okunamadı. Tekrar deneyin.');
       }
     } finally {
-      if (mounted) {
+      if (mounted && istek == _istek) {
         setState(() => _calisiyor = false);
       }
     }
@@ -159,7 +175,7 @@ class _DersEkraniState extends State<DersEkrani> {
 
   @override
   void dispose() {
-    oturumServisi.removeListener(_oturumDegisti);
+    _oturum.removeListener(_oturumDegisti);
     _kod.dispose();
     super.dispose();
   }
@@ -181,6 +197,10 @@ class _DersEkraniState extends State<DersEkrani> {
                   Text(widget.ozet.ozet),
                   const SizedBox(height: 16),
                   const Text('Bu derse devam etmek için hesabınla giriş yap.'),
+                  if (_etkinTaslaklar.isNotEmpty)
+                    const Text(
+                      'Bu ekran açık kaldığı sürece taslakların korunur.',
+                    ),
                   FilledButton(
                     onPressed: () =>
                         Navigator.pushNamed(context, Rotalar.giris),
@@ -193,7 +213,7 @@ class _DersEkraniState extends State<DersEkrani> {
                     child: const Text('Tekrar dene'),
                   ),
                 ] else ...[
-                  if (_ders!.misafireAcik && !oturumServisi.girisYapildi)
+                  if (_ders!.misafireAcik && !_oturum.girisYapildi)
                     const Text(
                       'İlk ders · Misafir olarak okuyabilir, kod çalıştırabilir ve test edebilirsin.',
                     ),
@@ -388,6 +408,8 @@ class _Sonuc extends StatelessWidget {
       }, style: Theme.of(context).textTheme.titleLarge),
       if (!test)
         const Text('Çalıştırma sonucu; test değerlendirmesi yapılmadı.'),
+      if (test && sonuc.gonderimId != null)
+        const Text('Gönderim geçmişine kaydedildi.'),
       const SizedBox(height: 12),
       if (test)
         _Cikti(

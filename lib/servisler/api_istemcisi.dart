@@ -13,6 +13,13 @@ class ApiHatasi implements Exception {
 }
 
 class ApiIstemcisi {
+  static const _kodSuresi = int.fromEnvironment(
+    'KOD_ZAMAN_ASIMI_SANIYE',
+    defaultValue: 60,
+  );
+  static const kodZamanAsimi = Duration(
+    seconds: _kodSuresi > 0 ? _kodSuresi : 60,
+  );
   final http.Client istemci;
   final Uri adres;
   final Duration zamanAsimi;
@@ -43,7 +50,29 @@ class ApiIstemcisi {
     String yol, {
     Map<String, dynamic>? veri,
     bool kimlik = true,
+    Duration? zamanAsimi,
   }) async {
+    _adresiDogrula();
+    final uri = adres.resolve(yol);
+    if (uri.scheme != adres.scheme ||
+        uri.origin != adres.origin ||
+        uri.userInfo.isNotEmpty ||
+        !uri.path.startsWith(adres.path)) {
+      throw const ApiHatasi('Geçersiz API yolu.');
+    }
+    return _iste(uri, veri: veri, kimlik: kimlik, sure: zamanAsimi);
+  }
+
+  // Geçmiş, mobil önekinin dışında ama aynı backend adresindedir.
+  Future<dynamic> gonderimGecmisiIste({int? id, int sayfa = 1}) async {
+    _adresiDogrula();
+    final yol = id == null
+        ? '/api/gonderimler?sayfa=$sayfa&sayfaBoyutu=20'
+        : '/api/gonderimler/$id';
+    return _iste(adres.resolve(yol), kimlik: true);
+  }
+
+  void _adresiDogrula() {
     if (!['http', 'https'].contains(adres.scheme) ||
         adres.host.isEmpty ||
         adres.userInfo.isNotEmpty ||
@@ -52,10 +81,14 @@ class ApiIstemcisi {
         'Sunucu adresi geçersiz. Yayın ortamında HTTPS gereklidir.',
       );
     }
-    final uri = adres.resolve(yol);
-    if (uri.origin != adres.origin || !uri.path.startsWith(adres.path)) {
-      throw const ApiHatasi('Geçersiz API yolu.');
-    }
+  }
+
+  Future<dynamic> _iste(
+    Uri uri, {
+    Map<String, dynamic>? veri,
+    required bool kimlik,
+    Duration? sure,
+  }) async {
     final token = kimlik ? tokenOku?.call() : null;
     final headers = <String, String>{
       'Accept': 'application/json',
@@ -67,7 +100,7 @@ class ApiIstemcisi {
           await (veri == null
                   ? istemci.get(uri, headers: headers)
                   : istemci.post(uri, headers: headers, body: jsonEncode(veri)))
-              .timeout(zamanAsimi);
+              .timeout(sure ?? zamanAsimi);
       dynamic body;
       try {
         body = response.body.isEmpty
@@ -89,7 +122,16 @@ class ApiIstemcisi {
           token == tokenOku?.call()) {
         await oturumGecersiz?.call();
       }
-      throw ApiHatasi(_mesaj(body, response.statusCode), response.statusCode);
+      final tekrar = int.tryParse(response.headers['retry-after'] ?? '');
+      final mesaj =
+          response.statusCode == 503 &&
+              body is Map &&
+              body['durum'] == 'kuyruk_dolu' &&
+              tekrar != null &&
+              tekrar > 0
+          ? 'Sandbox yoğun. $tekrar saniye sonra yeniden deneyin.'
+          : _mesaj(body, response.statusCode);
+      throw ApiHatasi(mesaj, response.statusCode);
     } on TimeoutException {
       throw const ApiHatasi('Sunucu zamanında yanıt vermedi. Tekrar deneyin.');
     } on SocketException {
