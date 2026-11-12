@@ -62,6 +62,11 @@ class OturumServisi extends ChangeNotifier {
           DateTime.parse(_oturum!['bitis'] as String).isAfter(simdi())
       ? _oturum!['token'] as String
       : null;
+  String? get kullaniciId {
+    if (!girisYapildi) return null;
+    return (_oturum?['kullanici'] as Map?)?['id'] as String?;
+  }
+
   String get adSoyad =>
       (_oturum?['kullanici'] as Map?)?['adSoyad'] as String? ?? 'Misafir';
   String get eposta =>

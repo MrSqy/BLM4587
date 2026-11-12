@@ -2,7 +2,7 @@ class GorevSonucu {
   final int no;
   final bool basarili;
   final String durum, cikti, hata;
-  final int? cikisKodu;
+  final int? cikisKodu, gonderimId;
   final bool? ciktiEslesiyor, cikisKoduEslesiyor;
   final List<String> kuralIhlalleri;
   GorevSonucu.fromJson(Map<String, dynamic> j)
@@ -12,6 +12,7 @@ class GorevSonucu {
       cikti = j['cikti'] as String,
       hata = j['hata'] as String,
       cikisKodu = j['cikisKodu'] as int?,
+      gonderimId = j['gonderimId'] as int?,
       ciktiEslesiyor = j['ciktiEslesiyor'] as bool?,
       cikisKoduEslesiyor = j['cikisKoduEslesiyor'] as bool?,
       kuralIhlalleri = (j['kuralIhlalleri'] as List).cast<String>();
