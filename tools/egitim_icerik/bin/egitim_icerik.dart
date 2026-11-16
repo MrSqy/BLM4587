@@ -9,6 +9,7 @@ Future<void> main(List<String> arguments) async {
   }
   const yardim =
       'Kullanım: dart run bin/egitim_icerik.dart <kaynak-klasoru> <cikti.json>\n'
+      'Kaynak: Python veya teknik-mulakat-v2.json içeren TM-DEMO deposu.\n'
       'Yalnız kaynak verilirse dersleri listeler. --help: bu yardım. Python çalıştırılmaz.';
   if (arguments.length == 1 && {'--help', '-h'}.contains(arguments.first)) {
     stdout.writeln(yardim);

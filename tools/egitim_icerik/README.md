@@ -1,6 +1,6 @@
 # egitim_icerik
 
-Python eğitim deposunu okuyup UTF-8 JSON üreten bağımsız Dart aracı.
+Python ve Teknik Mülakatlar demo eğitimlerini okuyup UTF-8 JSON üreten bağımsız Dart aracı.
 Python kodu/testleri çalıştırmaz; kaynak dosyalarını değiştirmez. Seçilmiş dersler için
 API yükleme/dry-run komutu aşağıda açıklanmıştır; tam aktarımda sözleşme engelleri vardır.
 
@@ -133,7 +133,7 @@ dart run bin/egitim_icerik.dart yukle --kaynak C:\dev\python-egitim --api http:/
 Dry-run sıfır HTTP isteği gönderir, oturum açmaz, DB/çalışan API sürümünü denetlemez.
 Adres açıkça verilir. Örnekteki port backend HTTP geliştirme profilidir; API'nin
 gerçekten çalıştığını kanıtlamaz. `--ders` virgülle ayrılmış açık seçimdir; bütün
-dersler varsayılan değildir. İlk gerçek deneme yalnız PY-01 olmalıdır.
+dersler varsayılan değildir. Python v2 geçişinin ilk gerçek denemesi yalnız PY-01 ile yapılmıştır; diğer dersler ayrıca seçilmelidir.
 
 PY-01 çıktısı: v2, 7 görev = 5 kod + 2 açıklama. Kod görevlerinde başlangıç yolu,
 UTF-8 kod, beklenen çıktı, stdin, beklenen çıkış kodu ve yasaklar aynen taşınır.
@@ -179,7 +179,7 @@ Baran'ın `20261105215923_GorevBazliKontrol` migration'ı yalnız görev tablosu
 eski görevler aktif ve `eski-pytest` kalır. Migration içerik aktarımı yapmaz;
 uygulama açılışı da migration'ı kendiliğinden uygulamaz.
 
-**Aşağıdaki yönetim adımları bu çalışmada yürütülmedi.** Backend ekibi/kullanıcı,
+**Güncel ortamda migration geçmişi ayrıca okunmalıdır.** Backend ekibi/kullanıcı,
 önce DB yedeğini alıp API'yi durdurduktan sonra mevcut kurulu EF aracıyla:
 
 ```powershell
@@ -189,8 +189,7 @@ dotnet run --project src/EgitimPlatformu.Web --launch-profile http
 ```
 
 Araç kurulu değilse backend'in mevcut EF kurulum yönergelerini izleyin. Migration
-zaten uygulanmışsa tekrar gerekmez; bu çalışmada gerçek DB migration geçmişi
-okunmadı. Kaynak kodun güncel olması çalışan işlemin güncel olduğunu göstermez.
+zaten uygulanmışsa tekrar gerekmez. 3. haftadaki yerel yedek/migration ve PY-01 aktarım sonuçları `raporlar/nisa/hafta-03.md` içindedir. Kaynak kodun güncel olması çalışan işlemin güncel olduğunu göstermez.
 
 V2 paketi **seçilen dersin tam görev listesidir**. Kod/kategori/no eşleşmesinde
 ID'ler korunur; pakette olmayan eski görev `Aktif=false` olur, satırı silinmez.
@@ -223,7 +222,7 @@ ortam değişkenlerinden alınır, argümana/dosyaya/loga yazılmaz. Çerez/JWT 
 kalır. Korunan geri okumalar gerekirse `/api/hesap/giris` JWT'siyle yapılır.
 TLS kontrolü kapatılmaz ve yönlendirmeler otomatik izlenmez.
 
-**Henüz gerçek aktarım için onay yok; bu çalışmada aşağıdaki komut çalıştırılmadı.**
+**Bu komut eski PY-01 verilerini yenileyebilir; yalnız ilgili ders için açık geçiş onayıyla kullanılmalıdır.**
 DB yedeği, migration/API, yönetici erişimi ve iki kapsam onayı hazır olduğunda
 ayrıca gerçek aktarım kararı verilmelidir. Sonradan kullanılabilecek biçim:
 
@@ -258,3 +257,138 @@ Diğer göreli dosya/resim bağlantıları korunur ve uyarılır; API dosya URL'
 uydurulmaz, ek dosyalar bu işlemle sunucuya yüklenmez.
 V2 kayıp raporu birleşik metni yeniden hesaplayarak ana içeriği doğrular;
 eski JSON içindeki gerçekten aktarılmayan README metni kayıp olarak kalır.
+## 4.2 Teknik Mülakatlar demo kaynağı
+
+Doğrulanan kaynak `C:\dev\teknik-mulakat-demo`; tam algoritmalar koleksiyonu
+olarak sunulmaz. Kaynak README/NOTICE, bunun dört üniteli bir uyarlama olduğunu
+belirtir. `teknik-mulakat-v2.json` varsa araç TM-DEMO biçimini otomatik seçer.
+Manifest yokken TM-DEMO klasörleri bulunursa eksik kaynak hatası verir.
+
+| Alan | Kaynak ve davranış |
+|---|---|
+| Kategori | Manifestten: `TM-DEMO`, `Teknik Mülakatlar`, sıra 50, özgün açıklama |
+| Dersler | `TM-DEMO-00`, `TM-DEMO-01`, `TM-DEMO-14`, `TM-DEMO-27`; manifest sırası 1–4, klasör numarası sıra değildir |
+| Görevler | Her derste 2 kod + 1 açıklama; toplam 12 görev, 8 stdout kontrolü |
+| Başlangıç/kontrol | Gerçek `gorevler/*.py`, Markdown Dosya/Girdi/Beklenen çıktı ve JSON alanları karşılaştırılır |
+| Ana metin | README + ALISTIRMALAR; konu anlatımı, ipuçları ve kod blokları korunur |
+| Paket açıklaması | Markdown'da bulunmayan ek paket notu görev açıklamasına ayrı bölümle eklenir |
+| Öz değerlendirme | Kaynak alıştırmadaki `details` metni korunur ve görüntüleyici desteği uyarılır; çözüm dosyası değildir |
+| Çözümler | `cozumler`, `çözümler`, `solutions` ağaçları, CEVAPLAR.md ve referans.py okunmaz |
+| Yerel arşiv | Kök kontrol.py `ortakDosyalar` içinde; kök README/NOTICE/LICENSE/LICENSE-CODE `ekBelgeler` içinde korunur |
+
+Tek kaynak/çıktı modeli kullanılır. Dışa aktarım içi kategori kimliği PY=1,
+TM-DEMO=2; TM-DEMO ders kimliği 1000000 + manifest sırasıdır. Bunlar DB kimliği
+olarak gönderilmez. Kategori/ders kimliği veya kod/sıra/görev numarası çakışmaları
+reddedilir; kategoriId ilişkisiyle gruplama kontrol edilir. PY keşfi ve sayısal
+sıralaması korunur. TM-DEMO yalnız v2 yüklemeyi destekler.
+
+Manifest ile Markdown/başlangıç dosyası veya kontrol uyuşmazlığında ders kodu
+ve manifest yolu içeren hata oluşur. Eksik başlangıç/test uydurulmaz; kontrol.py,
+öğrenci kodu veya pytest çalıştırılmaz. Tanımsız manifest alanları ve kök dosyaları
+reddedilir. Ek ders Markdown'ı JSON'da korunur, API'ye gitmiyorsa kayıp raporuna
+alınır; ek modül/veri dosyası v2 çalışma engelidir ve kısmi onayla aşılamaz.
+Sembolik kaynak bağları izlenmez.
+
+### Üretim ve dry-run
+
+Paket klasöründe (`dart` PATH'te değilse kurulu Dart SDK yolunu kullanın):
+
+```powershell
+dart run bin/egitim_icerik.dart C:\dev\teknik-mulakat-demo
+dart run bin/egitim_icerik.dart C:\dev\teknik-mulakat-demo build/teknik-mulakat.json
+dart run bin/egitim_icerik.dart yukle --kaynak C:\dev\teknik-mulakat-demo --api http://localhost:5080 --ders TM-DEMO-00,TM-DEMO-01,TM-DEMO-14,TM-DEMO-27 --dry-run
+```
+
+Varsayılan dry-run çıkışı 2'dir: öğrenci ders/görev verileri v2'ye sığar fakat
+API'de ortak kontrol ve ek kök belgeleri için kaynak arşivi alanı yoktur.
+Kullanıcı bu dosyaların sunucu arşivine alınmamasını 16 Kasım 2026'da onayladı.
+Onaylı kapsamın sıfır HTTP planını göstermek için:
+
+```powershell
+dart run bin/egitim_icerik.dart yukle --kaynak C:\dev\teknik-mulakat-demo --api http://localhost:5080 --ders TM-DEMO-00,TM-DEMO-01,TM-DEMO-14,TM-DEMO-27 --dry-run --kismi-aktarimi-onayla
+```
+
+Bu onay eski ders/görevleri değiştirme veya pasifleştirme onayı değildir.
+Mevcut boş ders kod/test alanı koruması devam eder. Aynı kodla ders varsa önce
+etkisi incelenip ayrıca karar alınmalıdır; `--v2-gecisini-onayla` otomatik eklenmez.
+TM-DEMO kategorisinin mevcut ad/açıklama/sırası kaynakla farklıysa gerçek komut
+hiçbir POST göndermeden durur. Diğer kategoriler korunur.
+
+### Yerel ortam ve gerçek aktarım
+
+Dry-run API bağlantısını veya DB kayıtlarını kontrol etmez. Kapalı API bağlantısı
+ayrıştırma hatası değildir. Kurulu Docker Desktop çalıştıktan sonra backend kökünde:
+
+```powershell
+cd C:\Users\pc_X\BLM4581
+docker compose up -d --no-build --pull never db
+dotnet build src/EgitimPlatformu.Web --no-restore
+dotnet run --project src/EgitimPlatformu.Web --no-build --launch-profile http
+```
+
+Migration uygulanmış varsayılmaz; eksik şema varsa önce salt okunur kontrol ve
+yedekleme planı gerekir. Bu komutlar imaj/Android SDK indirmez. Kullanıcı DB'sini
+sıfırlamayın. Yönetici kimlik bilgilerini mevcut `EGITIM_EPOSTA/EGITIM_SIFRE`
+yöntemiyle yalnız süreç belleğinde tanımlayın; komut satırına veya dosyaya yazmayın.
+Yeni ve çakışmayan dersler için onaylı aktarım biçimi:
+
+```powershell
+cd C:\dev\BLM4587\tools\egitim_icerik
+dart run bin/egitim_icerik.dart yukle --kaynak C:\dev\teknik-mulakat-demo --api http://localhost:5080 --ders TM-DEMO-00,TM-DEMO-01,TM-DEMO-14,TM-DEMO-27 --kismi-aktarimi-onayla
+```
+
+Geri okuma kategori kimliği/ad/açıklama/sıra, ders metni/ilişkisi ve tüm görev
+başlangıç/kontrol alanlarını karşılaştırır. Aktarım başarısı Python çalıştırma
+altyapısı başarısı değildir. Gerçek sonuç ve kalan engeller `raporlar/nisa/hafta-04.md`
+içindedir. Tam kaynak arşivi istenirse backend `Contracts/IcerikPaketi.cs` içinde
+`ortakDosyalar/ekBelgeler` benzeri alanlar ve servis/modelde bunların kalıcı saklanması
+gerekir; bu çalışmada backend veya Flutter kodu değiştirilmez.
+
+### Haftalık video
+
+1. Terminalde kaynak listeleme ve JSON üretimini göster: 4 ders, 12 görev, 8 kontrol.
+2. `build/teknik-mulakat.json` içinde TM-DEMO kategorisini, iki ana metin bölümünü,
+   bir başlangıç dosyasını ve boşluk/satır sonları korunmuş kontrolü aç.
+3. Varsayılan dry-run'ın arşiv korumasını ve onaylı dry-run'ın yerel planını karşılaştır.
+4. `dart analyze` / `dart test` sonucunu göster. Gerçek aktarım yapılmışsa API GET
+   doğrulamasını ayrıca göster; bağlantı yoksa dry-run'ı gerçek aktarım gibi anlatma.
+5. Parola, cookie, token veya bağlantı dizesi içeren terminal/dosya açma.
+
+### 16 Kasım 2026 gerçek sonuç
+
+Onaylanan kısmi kapsamla **TM-DEMO-00/01/14/27**, yeni TM-DEMO kategorisine
+(DB kategoriId=3) aktarıldı: 4 ders, 12 aktif görev, 8 kod başlangıcı/çıktı kontrolü.
+API geri okuması metin/kategori/görev/kod/kontrol eşliğini doğruladı. Mevcut üç
+ders, 24 görev ve PY/TMA kategorilerinin tam içerik özetleri değişmedi.
+`--v2-gecisini-onayla` kullanılmadı; eski kayıt güncelleme/pasifleştirme yapılmadı.
+Doğrulanmış yedek ve teknik kontrol özetleri depo dışında saklandı.
+
+Bu oturumda Docker ve API başlatıldı; eksik JWT anahtarı dosyaya yazılmadan yalnız
+API sürecinin ortamında üretildi. API yeniden başlatılırsa korunan geri okumalar
+ve mobil giriş için geçerli `Jwt:Anahtar` yapılandırması gerekir. Yerel geliştirmede
+API'yi başlatacağın PowerShell sürecinde değerini yazdırmadan üretme biçimi:
+
+```powershell
+$env:Jwt__Anahtar = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+dotnet run --project src/EgitimPlatformu.Web --no-build --launch-profile http
+```
+
+Her yeni anahtar eski JWT'leri geçersiz kılar; anahtarları paylaşma veya loglama.
+Parolası saklanmayan yerel aktarım yöneticisi proje başlangıç yöntemiyle hazırlandı;
+kişisel hesabın parolası değiştirilmedi. Sonraki yönetim oturumları için kendi
+kimlik bilgilerini güvenli yerel girişle tanımlamalısın.
+
+Kontroller: `dart format`, temiz `dart analyze`, **63 Dart testi** (18 yeni), gerçek
+Python regresyon üretimi 20 ders/140 görev/100 kontrol; demo JSON'u yeniden
+okundu ve tekrar üretimde SHA-256 eşitliği doğrulandı. **Python kodu veya sandbox
+çalıştırılmadı.** Videoda yalnız aktarım/geri okuma başarısı olarak sun.
+İlk yeni dersin misafire açık geri okuması:
+
+```powershell
+Invoke-RestMethod http://localhost:5080/api/mobil/kategoriler
+Invoke-RestMethod http://localhost:5080/api/mobil/egitimler/4
+```
+
+Diğer demo dersleri 5, 6, 7 kimliklerini aldı; detayları Bearer girişi gerektirir.
+Tekrar gerçek yükleme mevcut kayıt değişikliğidir: otomatik çalıştırmayın, dry-run
+ve etki incelemesini yenileyin.

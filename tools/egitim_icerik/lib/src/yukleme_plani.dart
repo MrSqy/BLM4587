@@ -74,8 +74,24 @@ YuklemePlani yuklemePlani(
     throw YuklemeHatasi('Yükleme sürümü 1 veya 2 olmalı.');
   }
   if (kodlar.isEmpty) throw YuklemeHatasi('En az bir ders açıkça seçilmeli.');
+  final kaynakKategorileri = (veri['kategoriler'] as List)
+      .cast<Map<String, dynamic>>();
+  if (kaynakKategorileri.map((k) => k['id']).toSet().length !=
+      kaynakKategorileri.length) {
+    throw YuklemeHatasi(
+      'Kaynak kategori kimlikleri çakışıyor; dersler yanlış kategoriye atanamaz.',
+    );
+  }
+  if (surum != 2 && kaynakKategorileri.any((k) => k['kisaltma'] == 'TM-DEMO')) {
+    throw YuklemeHatasi(
+      'TM-DEMO kaynağı görev tabanlı v2 sözleşmesi gerektirir.',
+    );
+  }
   final tumDersler = (veri['egitimler'] as List).cast<Map<String, dynamic>>();
   final secilen = tumDersler.where((d) => kodlar.contains(d['kod'])).toList();
+  if (secilen.map((d) => d['id']).toSet().length != secilen.length) {
+    throw YuklemeHatasi('Kaynak ders kimlikleri çakışıyor.');
+  }
   if (secilen.length != kodlar.length) {
     throw YuklemeHatasi(
       'Seçilen ders kaynakta bulunamadı veya ders kodu yineleniyor.',
@@ -119,6 +135,11 @@ YuklemePlani yuklemePlani(
   }
   if ((veri['ortakDosyalar'] as Map? ?? {}).isNotEmpty) {
     kayiplar.add('ortakDosyalar: ortak kontrol programı saklanamıyor.');
+  }
+  if ((veri['ekBelgeler'] as Map? ?? {}).isNotEmpty) {
+    kayiplar.add(
+      'ekBelgeler: ${(veri['ekBelgeler'] as Map).keys.join(', ')} API kaynak arşiv alanı bulunmadığı için saklanamıyor.',
+    );
   }
   final paket = <String, dynamic>{'surum': surum, 'kategoriler': kategoriler};
   if (utf8.encode(jsonEncode(paket)).length > 5 * 1024 * 1024) {
