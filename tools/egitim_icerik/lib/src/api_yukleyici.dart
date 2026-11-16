@@ -278,6 +278,12 @@ class IcerikYukleyici {
       }
       if (eslesen.isNotEmpty) {
         for (final alan in ['ad', 'aciklama', 'sira']) {
+          if (kategori['kisaltma'] == 'TM-DEMO' &&
+              kategori[alan] != eslesen.single[alan]) {
+            throw YuklemeHatasi(
+              'TM-DEMO: mevcut kategorinin $alan alanı kaynakla farklı; kategori değişikliği için karar gerekiyor. Hiçbir POST gönderilmedi.',
+            );
+          }
           kategori[alan] = eslesen.single[alan];
         }
       }
@@ -355,6 +361,13 @@ class IcerikYukleyici {
       final kategori = kategoriler
           .where((k) => k['kisaltma'] == kaynakKategori['kisaltma'])
           .toList();
+      if (kategori.length == 1) {
+        for (final alan in ['ad', 'aciklama', 'sira']) {
+          if (kategori.single[alan] != kaynakKategori[alan]) {
+            throw YuklemeHatasi('$kod: kategori $alan geri okuma uyuşmazlığı.');
+          }
+        }
+      }
       if (kategori.length != 1 ||
           kategori.single['id'] is! int ||
           (kategori.single['id'] as int) <= 0 ||

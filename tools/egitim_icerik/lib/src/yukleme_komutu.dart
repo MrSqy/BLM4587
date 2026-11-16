@@ -5,7 +5,7 @@ import 'yukleme_plani.dart';
 
 const yuklemeYardimi = '''Yükleme:
   dart run bin/egitim_icerik.dart yukle --kaynak <klasor> --api <temel-adres> --ders PY-01 [--dry-run]
-  --ders PY-01,PY-02          Açık ders seçimi; tüm dersler varsayılan değildir.
+  --ders PY-01,PY-02          Açık seçim; TM-DEMO-00,TM-DEMO-01 de desteklenir.
   --surum 2                  Varsayılan v2 görev sözleşmesi; eski pytest için 1.
   --kismi-aktarimi-onayla     Eksik alanlar raporlandıktan sonra kısmi aktarımı kabul eder.
   --v2-gecisini-onayla       DB yedeği sonrası mevcut dersin açık v2 dönüşümü.
@@ -54,8 +54,10 @@ Future<int> yuklemeKomutu(
       throw YuklemeHatasi('--kaynak, --api ve --ders zorunludur.');
     }
     final kodlar = degerler['--ders']!.split(',').map((k) => k.trim()).toSet();
-    if (kodlar.any((k) => !RegExp(r'^PY-\d+$').hasMatch(k))) {
-      throw YuklemeHatasi('Ders kodları PY-01 biçiminde olmalı.');
+    if (kodlar.any((k) => !RegExp(r'^(PY|TM-DEMO)-\d+$').hasMatch(k))) {
+      throw YuklemeHatasi(
+        'Ders kodları PY-01 veya TM-DEMO-00 biçiminde olmalı.',
+      );
     }
     final sure = int.tryParse(degerler['--zaman-asimi'] ?? '20');
     if (sure == null || sure < 1 || sure > 120) {
@@ -71,6 +73,9 @@ Future<int> yuklemeKomutu(
     }
     final veri = egitimleriAktar(degerler['--kaynak']!, dersKodlari: kodlar);
     final plan = yuklemePlani(veri, kodlar, surum: surum!);
+    cikti(
+      'Kategori: ${(plan.paket['kategoriler'] as List).map((dynamic k) => "${k['kisaltma']} — ${k['ad']}").join(', ')}',
+    );
     cikti('Hedef: $temel | Sözleşme v$surum | ${plan.ozet}');
     if (surum == 2) {
       final gorevler = plan.dersler

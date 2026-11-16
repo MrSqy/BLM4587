@@ -1,27 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:path/path.dart' as p;
+import 'src/kaynak_duzeni.dart';
 
 export 'src/aktarim.dart';
 
 List<Directory> dersKlasorleriniBul(String depoYolu) {
-  final dizin = Directory(p.join(depoYolu, 'dersler'));
-  if (!dizin.existsSync()) {
-    throw FileSystemException('Dersler klasörü bulunamadı.', dizin.path);
-  }
-  final desen = RegExp(r'^PY-(\d+)$');
-  final dersler = dizin
-      .listSync(followLinks: false)
-      .whereType<Directory>()
-      .where((d) => desen.hasMatch(p.basename(d.path)))
-      .toList();
-  dersler.sort((a, b) {
-    final fark = int.parse(
-      desen.firstMatch(p.basename(a.path))![1]!,
-    ).compareTo(int.parse(desen.firstMatch(p.basename(b.path))![1]!));
-    return fark != 0 ? fark : a.path.compareTo(b.path);
-  });
-  return dersler;
+  return KaynakDuzeni(depoYolu).klasorler();
 }
 
 /// UTF-8 dosyalarını okur; Python dahil hiçbir kaynağı çalıştırmaz.
