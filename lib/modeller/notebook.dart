@@ -92,6 +92,10 @@ sealed class NotebookHucresi {
 
   Map<String, dynamic> toJson();
 
+  /// Aynı hücrenin kaynağı değiştirilmiş kopyası. Kimlik, metadata, ekler ve
+  /// (kod hücresinde) kayıtlı çıktılar korunur; Jupyter da düzenlemede çıktıyı silmez.
+  NotebookHucresi kaynakIle(String yeniKaynak);
+
   Map<String, dynamic> temelJson(String hucreTuru) {
     return {
       'cell_type': hucreTuru,
@@ -124,6 +128,14 @@ final class MarkdownHucresi extends NotebookHucresi {
       ekler: _opsiyonelHaritaOku(json, 'attachments', yol),
     );
   }
+
+  @override
+  MarkdownHucresi kaynakIle(String yeniKaynak) => MarkdownHucresi(
+    id: id,
+    metadata: metadata,
+    kaynak: yeniKaynak,
+    ekler: ekler,
+  );
 
   @override
   Map<String, dynamic> toJson() {
@@ -172,6 +184,15 @@ final class KodHucresi extends NotebookHucresi {
   }
 
   @override
+  KodHucresi kaynakIle(String yeniKaynak) => KodHucresi(
+    id: id,
+    metadata: metadata,
+    kaynak: yeniKaynak,
+    calistirmaSayisi: calistirmaSayisi,
+    ciktilar: ciktilar,
+  );
+
+  @override
   Map<String, dynamic> toJson() {
     return {
       ...temelJson('code'),
@@ -203,6 +224,10 @@ final class HamHucresi extends NotebookHucresi {
       ekler: _opsiyonelHaritaOku(json, 'attachments', yol),
     );
   }
+
+  @override
+  HamHucresi kaynakIle(String yeniKaynak) =>
+      HamHucresi(id: id, metadata: metadata, kaynak: yeniKaynak, ekler: ekler);
 
   @override
   Map<String, dynamic> toJson() {
