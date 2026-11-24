@@ -479,6 +479,9 @@ void main() {
           tester.widget<TextField>(editor).controller!.text,
           '  ilk taslak\n',
         );
+        // Yeniden girişin 15 dk zamanlayıcısı test bitmeden kapatılmalı.
+        await oturumServisi.temizle();
+        await tester.pumpAndSettle();
       },
     );
   }
