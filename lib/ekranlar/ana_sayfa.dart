@@ -8,7 +8,9 @@ import '../servisler/egitim_servisi.dart';
 
 class AnaSayfa extends StatefulWidget {
   final ValueChanged<int>? kategoriSec;
-  const AnaSayfa({super.key, this.kategoriSec});
+  // Sekme yeniden görünür olunca özet yenilenir; içerik sunucuda değişmiş olabilir.
+  final bool etkin;
+  const AnaSayfa({super.key, this.kategoriSec, this.etkin = true});
 
   @override
   State<AnaSayfa> createState() => _AnaSayfaState();
@@ -22,6 +24,12 @@ class _AnaSayfaState extends State<AnaSayfa> {
   void initState() {
     super.initState();
     _ozet = _ozetiGetir();
+  }
+
+  @override
+  void didUpdateWidget(covariant AnaSayfa oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.etkin && !oldWidget.etkin) _ozet = _ozetiGetir();
   }
 
   Future<_Ozet> _ozetiGetir() async {

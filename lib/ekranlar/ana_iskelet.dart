@@ -23,7 +23,8 @@ class _AnaIskeletState extends State<AnaIskelet> {
     'Profil',
   ];
 
-  Widget _egitimler = const EgitimlerEkrani();
+  // Ana sayfada seçilen kategori; değişince Eğitimler ekranı o filtreyle yeniden kurulur.
+  int? _egitimlerKategoriId;
 
   @override
   Widget build(BuildContext context) {
@@ -33,15 +34,17 @@ class _AnaIskeletState extends State<AnaIskelet> {
         index: _seciliIndeks,
         children: [
           AnaSayfa(
+            etkin: _seciliIndeks == 0,
             kategoriSec: (id) => setState(() {
-              _egitimler = EgitimlerEkrani(
-                key: ValueKey(id),
-                baslangicKategoriId: id,
-              );
+              _egitimlerKategoriId = id;
               _seciliIndeks = 1;
             }),
           ),
-          _egitimler,
+          EgitimlerEkrani(
+            key: ValueKey(_egitimlerKategoriId),
+            baslangicKategoriId: _egitimlerKategoriId,
+            etkin: _seciliIndeks == 1,
+          ),
           IlerlemeEkrani(etkin: _seciliIndeks == 2),
           const ProfilEkrani(),
         ],
