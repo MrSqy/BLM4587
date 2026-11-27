@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import '../bilesenler/ders_icerigi.dart';
 import '../modeller/egitim.dart';
 import '../modeller/gorev.dart';
 import '../modeller/gorev_sonucu.dart';
@@ -19,6 +19,24 @@ class DersEkrani extends StatefulWidget {
 }
 
 class _DersEkraniState extends State<DersEkrani> {
+  final _icerikAnahtari = GlobalKey<DersIcerigiState>();
+  final _icerikPaneli = ExpansibleController();
+  static const _panelSuresi = Duration(milliseconds: 200);
+
+  Future<bool> _dersBasliginaGit(String href) async {
+    if (!mounted) return false;
+    FocusScope.of(context).unfocus();
+    if (!_icerikPaneli.isExpanded) {
+      _icerikPaneli.expand();
+    }
+    // İlk animasyon karesi başlamadan süreyi saymak hedefi yanlış konumlandırır.
+    await WidgetsBinding.instance.endOfFrame;
+    await Future<void>.delayed(_panelSuresi);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return false;
+    return await _icerikAnahtari.currentState?.basligaGit(href) ?? false;
+  }
+
   final _kod = TextEditingController();
   late final _oturum = oturumServisi;
   // Yalnız bu açık ders oturumu boyunca; sunucu görev numarası değil gerçek ID.
@@ -177,6 +195,7 @@ class _DersEkraniState extends State<DersEkrani> {
   void dispose() {
     _oturum.removeListener(_oturumDegisti);
     _kod.dispose();
+    _icerikPaneli.dispose();
     super.dispose();
   }
 
@@ -218,12 +237,17 @@ class _DersEkraniState extends State<DersEkrani> {
                       'İlk ders · Misafir olarak okuyabilir, kod çalıştırabilir ve test edebilirsin.',
                     ),
                   ExpansionTile(
+                    controller: _icerikPaneli,
+                    maintainState: true,
+                    expansionAnimationStyle: const AnimationStyle(
+                      duration: _panelSuresi,
+                    ),
                     title: const Text('Ders içeriği'),
                     tilePadding: EdgeInsets.zero,
                     children: [
-                      MarkdownBody(
-                        data: _ders!.icerikMarkdown,
-                        selectable: true,
+                      DersIcerigi(
+                        key: _icerikAnahtari,
+                        metin: _ders!.icerikMarkdown,
                       ),
                     ],
                   ),
@@ -256,7 +280,11 @@ class _DersEkraniState extends State<DersEkrani> {
                       style: theme.textTheme.titleLarge,
                     ),
                     const SizedBox(height: 12),
-                    MarkdownBody(data: g.aciklama, selectable: true),
+                    DersIcerigi(
+                      key: ValueKey('gorev_icerigi_${g.id}'),
+                      metin: g.aciklama,
+                      onDersIciBaglanti: _dersBasliginaGit,
+                    ),
                     const SizedBox(height: 20),
                     if (g.tur == 'aciklama')
                       const Card(
