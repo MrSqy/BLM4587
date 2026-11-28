@@ -16,7 +16,7 @@ class SilinenHucre {
 }
 
 /// 4.3: Notebook hücrelerini bellekte düzenler (ekle, sil, taşı, kaynak değiştir).
-/// [NotebookBelgesi] değişmez kalır; güncel hâl [belge] ile alınır. Cihaza kaydetme 5.3'tür.
+/// [NotebookBelgesi] değişmez kalır; güncel hâl [belge] ile alınır.
 ///
 /// Her hücrenin, yeri değişse de aynı kalan bir [anahtar]ı vardır. Ekran metin
 /// denetleyicilerini bu anahtarla tutar; nbformat 4.5 öncesinde hücre kimliği olmadığı için gerekir.
@@ -26,7 +26,7 @@ class NotebookDuzenleyici extends ChangeNotifier {
   final List<NotebookHucresi> _hucreler;
   final List<int> _anahtarlar;
   int _sonrakiAnahtar;
-  bool _degisti = false;
+  int _degisiklikSurumu = 0;
 
   NotebookDuzenleyici(NotebookBelgesi belge, {Random? rastgele})
     : _ozgun = belge,
@@ -37,7 +37,8 @@ class NotebookDuzenleyici extends ChangeNotifier {
 
   List<NotebookHucresi> get hucreler => List.unmodifiable(_hucreler);
   int get uzunluk => _hucreler.length;
-  bool get degisti => _degisti;
+  bool get degisti => _degisiklikSurumu > 0;
+  int get degisiklikSurumu => _degisiklikSurumu;
 
   int anahtar(int indeks) => _anahtarlar[indeks];
 
@@ -114,7 +115,7 @@ class NotebookDuzenleyici extends ChangeNotifier {
   }
 
   void _degistir() {
-    _degisti = true;
+    _degisiklikSurumu++;
     notifyListeners();
   }
 

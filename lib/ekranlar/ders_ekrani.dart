@@ -8,6 +8,7 @@ import '../rotalar.dart';
 import '../servisler/api_istemcisi.dart';
 import '../servisler/egitim_servisi.dart';
 import '../servisler/oturum_servisi.dart';
+import 'ders_notu_ekrani.dart';
 
 class DersEkrani extends StatefulWidget {
   final Egitim ozet;
@@ -204,7 +205,32 @@ class _DersEkraniState extends State<DersEkrani> {
     final g = _gorev;
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.ozet.kod)),
+      appBar: AppBar(
+        title: Text(widget.ozet.kod),
+        actions: [
+          if (_ders != null && !_yukleniyor)
+            IconButton(
+              tooltip: 'Ders notu ve yer imi',
+              icon: const Icon(Icons.bookmark_outline),
+              onPressed: () {
+                if (!_oturum.girisYapildi) {
+                  Navigator.pushNamed(context, Rotalar.giris);
+                  return;
+                }
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DersNotuEkrani(
+                      dersId: widget.ozet.id,
+                      baslik: widget.ozet.baslik,
+                      oturum: _oturum,
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
       body: _yukleniyor
           ? const Center(child: CircularProgressIndicator())
           : ListView(

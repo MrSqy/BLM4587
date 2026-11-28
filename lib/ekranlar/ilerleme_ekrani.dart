@@ -120,6 +120,13 @@ class _IlerlemeEkraniState extends State<IlerlemeEkrani> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
+          OutlinedButton.icon(
+            onPressed: () =>
+                Navigator.pushNamed(context, Rotalar.dersIlerlemesi),
+            icon: const Icon(Icons.insights),
+            label: const Text('Ders ilerlemem'),
+          ),
+          const SizedBox(height: 16),
           Text(
             'Gönderim geçmişi',
             style: Theme.of(context).textTheme.titleLarge,

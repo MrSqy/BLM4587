@@ -18,12 +18,15 @@ class EgitimlerEkrani extends StatefulWidget {
   final EgitimServisi? servis;
   final int? baslangicKategoriId;
   final NotebookYukleyici? notebookYukleyici;
+  // Sekme yeniden görünür olunca liste yenilenir; içerik sunucuda değişmiş olabilir.
+  final bool etkin;
 
   const EgitimlerEkrani({
     super.key,
     this.servis,
     this.baslangicKategoriId,
     this.notebookYukleyici,
+    this.etkin = true,
   });
 
   @override
@@ -44,6 +47,12 @@ class _EgitimlerEkraniState extends State<EgitimlerEkrani> {
 
   void _oturumDegisti() {
     if (mounted) setState(() => _veri = _yukle());
+  }
+
+  @override
+  void didUpdateWidget(covariant EgitimlerEkrani oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.etkin && !oldWidget.etkin) _veri = _yukle();
   }
 
   @override
