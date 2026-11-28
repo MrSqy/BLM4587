@@ -93,4 +93,37 @@ void main() {
       );
     },
   );
+
+  test(
+    'başarısız dosya değişimi diğer kayıtları korur ve geçici dizini temizler',
+    () async {
+      const klasor = 'notebook-taslaklari';
+      const hesap = 'ogrenci-a';
+      await dosyalar.yaz(klasor, sunucu, hesap, 'kayit.ipynb', 'önceki kayıt');
+      final dosya = (await dosyalar.dosyalariListele(
+        klasor,
+        sunucu,
+        hesap,
+      )).single;
+      final engel = Directory('${dosya.parent.path}/engelli.ipynb');
+      await engel.create();
+
+      await expectLater(
+        dosyalar.yaz(klasor, sunucu, hesap, 'engelli.ipynb', 'yeni taslak'),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(
+        await dosyalar.oku(klasor, sunucu, hesap, 'kayit.ipynb'),
+        'önceki kayıt',
+      );
+      final girdiler = await dosya.parent.list().toList();
+      expect(
+        girdiler.any(
+          (girdi) =>
+              girdi.uri.pathSegments.any((ad) => ad.startsWith('.kayit-')),
+        ),
+        isFalse,
+      );
+    },
+  );
 }
