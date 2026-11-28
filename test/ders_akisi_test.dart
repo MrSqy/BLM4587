@@ -479,6 +479,8 @@ void main() {
           tester.widget<TextField>(editor).controller!.text,
           '  ilk taslak\n',
         );
+        await oturumServisi.temizle();
+        await tester.pumpAndSettle();
       },
     );
   }

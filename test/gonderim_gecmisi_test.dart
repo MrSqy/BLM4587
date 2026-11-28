@@ -145,6 +145,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Ders 42'), findsNothing);
       expect(find.text('Ders 80'), findsOneWidget);
+      await oturumServisi.temizle();
+      await tester.pumpAndSettle();
     },
   );
 
@@ -165,6 +167,8 @@ void main() {
     await tester.tap(find.text('Tekrar dene'));
     await tester.pumpAndSettle();
     expect(find.text('Henüz gönderimin yok.'), findsOneWidget);
+    await oturumServisi.temizle();
+    await tester.pumpAndSettle();
   });
 
   test(
