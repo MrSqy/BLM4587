@@ -6,15 +6,21 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../modeller/notebook.dart';
 import '../modeller/notebook_duzenleyici.dart';
+import '../servisler/notebook_depolama.dart';
 import 'notebook_ciktilari.dart';
 import 'notebook_hucre_duzenleyici.dart';
 
-/// Uygulamaya gömülü örnek notebook'u açar. Notebook API'si gelene kadar
-/// kayıtlı çıktıların gösterimini ve hücre düzenlemeyi denemek içindir.
+/// Örnek notebook'u ve cihazda saklanan kopyalarını açar.
 class OrnekNotebookEkrani extends StatefulWidget {
   final Future<NotebookBelgesi> Function()? yukleyici;
 
-  const OrnekNotebookEkrani({super.key, this.yukleyici});
+  final NotebookDepolama depolama;
+
+  const OrnekNotebookEkrani({
+    super.key,
+    this.yukleyici,
+    this.depolama = const NotebookDepolama(),
+  });
 
   @override
   State<OrnekNotebookEkrani> createState() => _OrnekNotebookEkraniState();
@@ -23,6 +29,16 @@ class OrnekNotebookEkrani extends StatefulWidget {
 class _OrnekNotebookEkraniState extends State<OrnekNotebookEkrani> {
   late final Future<NotebookBelgesi> _notebook =
       (widget.yukleyici ?? _varsayilanYukleyici)();
+  (NotebookBelgesi, NotebookYerelKopya)? _acilan;
+  Key _editorAnahtari = UniqueKey();
+
+  void _yerelKopyayiGoster(NotebookBelgesi belge, NotebookYerelKopya kopya) {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    setState(() {
+      _acilan = (belge, kopya);
+      _editorAnahtari = UniqueKey();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,8 +47,15 @@ class _OrnekNotebookEkraniState extends State<OrnekNotebookEkrani> {
       builder: (context, durum) {
         if (durum.hasData) {
           return NotebookGoruntuleyiciEkrani(
-            notebook: durum.data!,
-            baslik: 'Örnek notebook',
+            key: _editorAnahtari,
+            notebook: _acilan?.$1 ?? durum.data!,
+            baslik: switch (_acilan?.$2) {
+              NotebookYerelKopya.kayit => 'Kayıtlı notebook',
+              NotebookYerelKopya.taslak => 'Notebook taslağı',
+              null => 'Örnek notebook',
+            },
+            depolama: widget.depolama,
+            yerelKopyayiGoster: _yerelKopyayiGoster,
           );
         }
         return Scaffold(
@@ -52,21 +75,37 @@ class _OrnekNotebookEkraniState extends State<OrnekNotebookEkrani> {
       .then(NotebookBelgesi.fromJsonString);
 }
 
-/// Notebook'u gösterir. Sağ üstteki düğme düzenleme modunu açar (4.3): hücre
-/// ekleme, silme, taşıma ve kaynak düzenleme. Değişiklikler bellekte tutulur.
+/// Notebook'u gösterir, düzenler ve yerel kopya işlemlerini sunar.
 class NotebookGoruntuleyiciEkrani extends StatefulWidget {
   final NotebookBelgesi notebook;
   final String baslik;
+  final NotebookDepolama? depolama;
+  final void Function(NotebookBelgesi, NotebookYerelKopya)? yerelKopyayiGoster;
 
   const NotebookGoruntuleyiciEkrani({
     super.key,
     required this.notebook,
     this.baslik = 'Notebook',
+    this.depolama,
+    this.yerelKopyayiGoster,
   });
 
   @override
   State<NotebookGoruntuleyiciEkrani> createState() =>
       _NotebookGoruntuleyiciEkraniState();
+}
+
+enum _NotebookDosyaIslemi {
+  kaydet('Cihaza kaydet', NotebookYerelKopya.kayit, yazma: true),
+  taslakKaydet('Taslak olarak kaydet', NotebookYerelKopya.taslak, yazma: true),
+  kaydiAc('Kaydedilen notebook’u aç', NotebookYerelKopya.kayit),
+  taslagiAc('Taslağı aç', NotebookYerelKopya.taslak);
+
+  final String etiket;
+  final NotebookYerelKopya kopya;
+  final bool yazma;
+
+  const _NotebookDosyaIslemi(this.etiket, this.kopya, {this.yazma = false});
 }
 
 class _NotebookGoruntuleyiciEkraniState
@@ -76,6 +115,10 @@ class _NotebookGoruntuleyiciEkraniState
   );
   final Map<int, TextEditingController> _denetleyiciler = {};
   bool _duzenleme = false;
+  bool _islemSuruyor = false;
+  int _kaydedilenSurum = 0;
+
+  bool get _kaydedilmemis => _duzenleyici.degisiklikSurumu != _kaydedilenSurum;
 
   @override
   void dispose() {
@@ -144,30 +187,92 @@ class _NotebookGoruntuleyiciEkraniState
         ),
       ),
     );
-    if (tur != null) _ekle(indeks, tur);
+    if (tur != null && mounted) _ekle(indeks, tur);
+  }
+
+  Future<bool> _degisiklikleriBirakmayiOnayla({required bool cikis}) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Değişiklikler kaybolacak'),
+            content: Text(
+              cikis
+                  ? 'Kaydedilmemiş düzenlemeler var. Çıkmak istiyor musun?'
+                  : 'Kaydedilmemiş düzenlemeler var. Yine de bu kopyayı açmak istiyor musun?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Vazgeç'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(cikis ? 'Çık' : 'Aç'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<void> _cikisiOnayla() async {
-    final cik = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Değişiklikler kaybolacak'),
-        content: const Text(
-          'Notebook üzerindeki düzenlemeler henüz kaydedilmiyor. Çıkmak istiyor musun?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Vazgeç'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Çık'),
-          ),
-        ],
-      ),
-    );
-    if (cik == true && mounted) Navigator.of(context).pop();
+    if (await _degisiklikleriBirakmayiOnayla(cikis: true) && mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _bildir(String mesaj) {
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(mesaj)));
+  }
+
+  Future<void> _dosyaIslemi(_NotebookDosyaIslemi islem) async {
+    final depolama = widget.depolama;
+    if (depolama == null || _islemSuruyor) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() => _islemSuruyor = true);
+    final taslak = islem.kopya == NotebookYerelKopya.taslak;
+    try {
+      if (islem.yazma) {
+        final surum = _duzenleyici.degisiklikSurumu;
+        await depolama.yaz(islem.kopya, _duzenleyici.belge);
+        if (!mounted) return;
+        _kaydedilenSurum = surum;
+        _bildir(taslak ? 'Taslak kaydedildi.' : 'Notebook cihaza kaydedildi.');
+        return;
+      }
+
+      final belge = await depolama.oku(islem.kopya);
+      if (!mounted) return;
+      if (belge == null) {
+        _bildir(taslak ? 'Henüz taslak yok.' : 'Henüz kayıtlı notebook yok.');
+        return;
+      }
+      if (_kaydedilmemis &&
+          !await _degisiklikleriBirakmayiOnayla(cikis: false)) {
+        return;
+      }
+      if (mounted) widget.yerelKopyayiGoster?.call(belge, islem.kopya);
+    } on FormatException {
+      if (mounted) {
+        _bildir(
+          taslak ? 'Taslak dosyası okunamadı.' : 'Notebook dosyası okunamadı.',
+        );
+      }
+    } on Exception {
+      if (mounted) {
+        _bildir(switch (islem) {
+          _NotebookDosyaIslemi.kaydet => 'Notebook kaydedilemedi.',
+          _NotebookDosyaIslemi.taslakKaydet => 'Taslak kaydedilemedi.',
+          _NotebookDosyaIslemi.kaydiAc => 'Notebook açılamadı.',
+          _NotebookDosyaIslemi.taslagiAc => 'Taslak açılamadı.',
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _islemSuruyor = false);
+    }
   }
 
   @override
@@ -181,9 +286,9 @@ class _NotebookGoruntuleyiciEkraniState
             if (_gorunur(hucreler[i])) i,
         ];
         return PopScope(
-          canPop: !_duzenleyici.degisti,
+          canPop: !_kaydedilmemis && !_islemSuruyor,
           onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) _cikisiOnayla();
+            if (!didPop && !_islemSuruyor) _cikisiOnayla();
           },
           child: Scaffold(
             appBar: AppBar(
@@ -192,15 +297,31 @@ class _NotebookGoruntuleyiciEkraniState
                 IconButton(
                   key: const ValueKey('notebookDuzenle'),
                   tooltip: _duzenleme ? 'Düzenlemeyi bitir' : 'Düzenle',
-                  onPressed: () => setState(() => _duzenleme = !_duzenleme),
+                  onPressed: _islemSuruyor
+                      ? null
+                      : () => setState(() => _duzenleme = !_duzenleme),
                   icon: Icon(_duzenleme ? Icons.check : Icons.edit_outlined),
                 ),
+                if (widget.depolama != null &&
+                    widget.yerelKopyayiGoster != null)
+                  PopupMenuButton<_NotebookDosyaIslemi>(
+                    tooltip: 'Notebook dosyaları',
+                    enabled: !_islemSuruyor,
+                    icon: const Icon(Icons.folder_open_outlined),
+                    onSelected: _dosyaIslemi,
+                    itemBuilder: (_) => [
+                      for (final islem in _NotebookDosyaIslemi.values)
+                        PopupMenuItem(value: islem, child: Text(islem.etiket)),
+                    ],
+                  ),
               ],
             ),
             floatingActionButton: _duzenleme
                 ? FloatingActionButton.extended(
                     key: const ValueKey('hucreEkle'),
-                    onPressed: () => _hucreTuruSecVeEkle(hucreler.length),
+                    onPressed: _islemSuruyor
+                        ? null
+                        : () => _hucreTuruSecVeEkle(hucreler.length),
                     icon: const Icon(Icons.add),
                     label: const Text('Hücre ekle'),
                   )
@@ -208,7 +329,9 @@ class _NotebookGoruntuleyiciEkraniState
             body: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_duzenleyici.degisti)
+                if (_islemSuruyor && ModalRoute.isCurrentOf(context) == true)
+                  const LinearProgressIndicator(),
+                if (_kaydedilmemis)
                   Container(
                     key: const ValueKey('kaydedilmediUyarisi'),
                     color: Theme.of(context).colorScheme.secondaryContainer,
@@ -216,9 +339,7 @@ class _NotebookGoruntuleyiciEkraniState
                       horizontal: 16,
                       vertical: 8,
                     ),
-                    child: const Text(
-                      'Değişiklikler bu ekranda tutuluyor, henüz kaydedilmiyor.',
-                    ),
+                    child: const Text('Kaydedilmemiş değişiklikler var.'),
                   ),
                 Expanded(
                   child: gorunurler.isEmpty

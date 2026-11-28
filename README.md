@@ -26,6 +26,15 @@ flutter analyze
 flutter test
 ```
 
+## Notebook'u cihazda kaydetme
+
+1. **Profil → Örnek notebook** ekranını açın ve kalem düğmesiyle düzenlemeye başlayın.
+2. Sağ üstteki klasör menüsünde **Cihaza kaydet** veya **Taslak olarak kaydet** seçeneğini seçin.
+3. Uygulamayı yeniden açtığınızda aynı menüde **Kaydedilen notebook’u aç** veya **Taslağı aç** seçeneğini kullanın.
+
+Örnek notebook için bir kayıt ve bir taslak ayrı tutulur. Her kaydetme işlemi seçilen kopyayı günceller.
+Dosyalar uygulamanın cihazdaki alanında `.ipynb` olarak saklanır ve çevrimdışı açılabilir.
+
 ## 3. hafta: mobil API, oturum ve kod çalışması
 
 - Sade lacivert açık/koyu tema; Eğitimler, Profil, giriş/kayıt ve ders/kod ekranları.
