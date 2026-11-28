@@ -392,3 +392,39 @@ Invoke-RestMethod http://localhost:5080/api/mobil/egitimler/4
 Diğer demo dersleri 5, 6, 7 kimliklerini aldı; detayları Bearer girişi gerektirir.
 Tekrar gerçek yükleme mevcut kayıt değişikliğidir: otomatik çalıştırmayın, dry-run
 ve etki incelemesini yenileyin.
+## 6.2 — Artımlı aktarım
+
+`yukle` komutuna `--artimli` eklenirse yalnız yeni/değişmiş dersler gönderilir.
+Bu seçenek verilmezse mevcut tam aktarım (seçilen derslerin tek pakette gönderilmesi)
+aynen sürer. Paket klasöründen örnek:
+
+```powershell
+dart run bin/egitim_icerik.dart yukle --kaynak C:\dev\python-egitim --api http://localhost:5080 --ders PY-01 --artimli --dry-run --kismi-aktarimi-onayla
+```
+
+Gerçek yerel aktarım için `--dry-run` kaldırılır; mevcut `EGITIM_EPOSTA` /
+`EGITIM_SIFRE`, kısmi kapsam ve gerekiyorsa yedek sonrası
+`--v2-gecisini-onayla` koşulları geçerlidir. Artımlı seçenek bu korumaları aşmaz.
+Algoritma kaynağında da aynı seçenek kullanılır:
+
+```powershell
+dart run bin/egitim_icerik.dart yukle --kaynak C:\dev\teknik-mulakat-demo --api http://localhost:5080 --ders TM-DEMO-00,TM-DEMO-01,TM-DEMO-14,TM-DEMO-27 --artimli --dry-run --kismi-aktarimi-onayla
+```
+
+Karşılaştırma ve kayıt:
+
+- API sözleşmesinde ders sürümü/hash yok; GET ders ayrıntısı `testKodu` alanını da döndürmüyor. Backend/DB değiştirilmedi. Yerel SHA-256 kaydı kullanılıyor.
+- Özet, adaptörden çıkan gerçek gönderim paketini kapsar: sözleşme sürümü, kategori, ders metni/sırası/kodları, görevler, başlangıçlar ve kontroller. Kaynak arşivinde kalıp API'ye gitmeyen alanlar özete girmez; mevcut kayıp raporu/onayı sürer. Dosya zamanları kullanılmaz.
+- JSON anahtar sırası, görevlerin liste sırası (görev numarasına göre) ve `kullanilmamali` sırası normalize edilir. Kod/Markdown/stdout metinleri değiştirilmez; girinti ve satır sonları anlamlıdır. Normal yükleyicinin koruduğu mevcut Python kategori ad/açıklama/sırası son gerçek gönderimden alınır; TM-DEMO kategori doğrulaması korunur.
+- Varsayılan kayıt, komutun çalışma dizinine göre `build/aktarim-durumu.json`; `--durum-dosyasi <dosya>` ile değiştirilebilir (yalnız `--artimli` ile). Eğitim kaynağının içine yazılamaz. Kayıtta yalnız hedef adresinin özeti, ders kodu, paket özeti ve açık kategori bilgileri bulunur; parola/token/kaynak kod yoktur. API adresinin şema/host/port/temel yolu ayrı hedef sayılır.
+- İlk çalıştırmada kayıt yoksa tüm seçili dersler **yeni** görünür. Bu, sunucuda bulunmadıkları anlamına gelmez; mevcut kayıt kontrolleri gerçek aktarımda ayrıca çalışır. Aynı hedefte aynı özet **değişmemiş**, farklı özet **değişmiş** demektir.
+- Artımlı aktarım her dersi ayrı POST ile gönderir. Başarılı POST ve mevcut API geri okuma doğrulamasından sonra durum atomik olarak yazılır. Ders düzeyindeki testKodu için GET doğrulaması mümkün değildir; mevcut sunucunun işlem onayı esas alınır, görev kontrolleri geri okunur. Bir hata/yanıt kaybı/geri okuma uyuşmazlığında işlem durur; başarısız ve sonraki dersler güncel sayılmaz. Otomatik tekrar yoktur; sonraki komut bunları yeniden dener, önce doğrulanmış dersleri atlar. Sunucuda kaydolup yanıtı kaybolmuş v2 dersin yeniden denenmesinde mevcut geçiş onayı gerekebilir.
+- Gerçek çalışmada aynı kayıt dosyası kilitlenir; `.kilit` dosyası kalabilir. Kayıt yazılamazsa başarı raporlanmaz; sonraki çalışma tekrar deneyecektir. Bozuk/sürümü bilinmeyen kayıt üzerine yazılmaz. Dry-run hiçbir HTTP isteği göndermez; kayıt, klasör veya kilit oluşturmaz/değiştirmez; yüklenecek/atlanacak kodları gösterir.
+- Kaynakta artık bulunmayan dersler sunucudan veya kayıttan silinmez. Gönderilen bir dersin mevcut v2 görev listesindeki pasifleştirme kuralları aynen devam eder.
+
+**Sınır:** Bu kayıt son doğrulanmış yerel gönderimi temsil eder; sunucuda başka
+araçla düzenleme, DB geri yükleme/sıfırlama veya başka bilgisayardan aktarım
+kendiliğinden fark edilmez. Böyle bir durumda tam aktarım veya yeni bir
+`--durum-dosyasi` ile açık yeniden doğrulama gerekir; mevcut veri korumaları
+tekrar uygulanır. Tam aktarım bu kaydı güncellemez. Aynı hedef için tek kalıcı
+durum dosyası kullanın. Dry-run sunucudaki mevcut kayıt etkisini doğrulamaz.

@@ -1,6 +1,7 @@
 import 'dart:io';
 import '../egitim_icerik.dart';
 import 'api_yukleyici.dart';
+import 'artimli_aktarim.dart';
 import 'yukleme_plani.dart';
 
 const yuklemeYardimi = '''Yükleme:
@@ -10,6 +11,8 @@ const yuklemeYardimi = '''Yükleme:
   --kismi-aktarimi-onayla     Eksik alanlar raporlandıktan sonra kısmi aktarımı kabul eder.
   --v2-gecisini-onayla       DB yedeği sonrası mevcut dersin açık v2 dönüşümü.
   --zaman-asimi <saniye>      1–120; varsayılan 20.
+  --artimli                  Yalnız yeni/değişmiş dersleri yükler.
+  --durum-dosyasi <dosya>     Artımlı kayıt; varsayılan build/aktarim-durumu.json.
 Gerçek yükleme yalnız loopback adreslere yapılır. EGITIM_EPOSTA/EGITIM_SIFRE gerekir.
 Dry-run hiçbir HTTP isteği göndermez. Veri kaybı varsayılan olarak engellenir.''';
 
@@ -19,7 +22,7 @@ Future<int> yuklemeKomutu(
   HttpGonder? gonder,
   void Function(String)? yaz,
 }) async {
-  final cikti = yaz ?? stdout.writeln;
+  final void Function(String) cikti = yaz ?? (s) => stdout.writeln(s);
   final degerler = <String, String>{};
   final bayraklar = <String>{};
   try {
@@ -27,6 +30,7 @@ Future<int> yuklemeKomutu(
       final ad = args[i];
       if ({
         '--dry-run',
+        '--artimli',
         '--kismi-aktarimi-onayla',
         '--v2-gecisini-onayla',
       }.contains(ad)) {
@@ -37,6 +41,7 @@ Future<int> yuklemeKomutu(
         '--ders',
         '--zaman-asimi',
         '--surum',
+        '--durum-dosyasi',
       }.contains(ad)) {
         if (degerler.containsKey(ad) ||
             i + 1 >= args.length ||
@@ -54,6 +59,10 @@ Future<int> yuklemeKomutu(
       throw YuklemeHatasi('--kaynak, --api ve --ders zorunludur.');
     }
     final kodlar = degerler['--ders']!.split(',').map((k) => k.trim()).toSet();
+    if (degerler.containsKey('--durum-dosyasi') &&
+        !bayraklar.contains('--artimli')) {
+      throw YuklemeHatasi('--durum-dosyasi yalnız --artimli ile kullanılır.');
+    }
     if (kodlar.any((k) => !RegExp(r'^(PY|TM-DEMO)-\d+$').hasMatch(k))) {
       throw YuklemeHatasi(
         'Ders kodları PY-01 veya TM-DEMO-00 biçiminde olmalı.',
@@ -73,6 +82,12 @@ Future<int> yuklemeKomutu(
     }
     final veri = egitimleriAktar(degerler['--kaynak']!, dersKodlari: kodlar);
     final plan = yuklemePlani(veri, kodlar, surum: surum!);
+    final durum = bayraklar.contains('--artimli')
+        ? ArtimliDurum(
+            degerler['--durum-dosyasi'] ?? 'build/aktarim-durumu.json',
+            kaynak: degerler['--kaynak']!,
+          )
+        : null;
     cikti(
       'Kategori: ${(plan.paket['kategoriler'] as List).map((dynamic k) => "${k['kisaltma']} — ${k['ad']}").join(', ')}',
     );
@@ -98,6 +113,10 @@ Future<int> yuklemeKomutu(
       'İşlem: kategori kısaltması / ders kodu / görev numarası ile ekle-güncelle; kimlikler sunucuda üretilir, silme yok.',
     );
     if (bayraklar.contains('--dry-run')) {
+      if (durum != null) {
+        durum.oku();
+        artimliOzeti(durum.ayir(plan, temel), cikti);
+      }
       cikti(
         'DRY-RUN: HTTP isteği yok; sunucudaki mevcut kod/test alanları ve oturum kontrol edilmedi.',
       );
@@ -130,6 +149,21 @@ Future<int> yuklemeKomutu(
         ? ApiBaglantisi(zamanAsimi: Duration(seconds: sure))
         : null;
     try {
+      if (durum != null) {
+        final basarili =
+            await ArtimliYukleyici(
+              IcerikYukleyici(temel, gonder ?? baglanti!.gonder),
+              durum,
+            ).yukle(
+              plan,
+              eposta: env['EGITIM_EPOSTA'] ?? '',
+              sifre: env['EGITIM_SIFRE'] ?? '',
+              yaz: cikti,
+              kayipOnayi: bayraklar.contains('--kismi-aktarimi-onayla'),
+              v2GecisOnayi: bayraklar.contains('--v2-gecisini-onayla'),
+            );
+        return basarili ? 0 : 1;
+      }
       final sonuc = await IcerikYukleyici(temel, gonder ?? baglanti!.gonder)
           .yukle(
             plan,

@@ -257,7 +257,7 @@ Map<String, dynamic> egitimleriAktar(
   };
 }
 
-void jsonYaz(String kaynak, String cikti, Map<String, dynamic> veri) {
+String guvenliCiktiYolu(String kaynak, String cikti) {
   final kok = Directory(kaynak).resolveSymbolicLinksSync();
   final dosya = File(p.absolute(cikti));
   // Var olmayan hedeflerde en yakın mevcut üst dizinin gerçek yolunu kullan.
@@ -277,6 +277,11 @@ void jsonYaz(String kaynak, String cikti, Map<String, dynamic> veri) {
       dosya.path,
     );
   }
+  return dosya.path;
+}
+
+void jsonYaz(String kaynak, String cikti, Map<String, dynamic> veri) {
+  final dosya = File(guvenliCiktiYolu(kaynak, cikti));
   dosya.parent.createSync(recursive: true);
   dosya.writeAsStringSync(
     '${const JsonEncoder.withIndent('  ').convert(veri)}\n',
