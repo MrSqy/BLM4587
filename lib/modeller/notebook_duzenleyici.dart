@@ -113,6 +113,12 @@ class NotebookDuzenleyici extends ChangeNotifier {
     _degistir();
   }
 
+  void kaydedildi(NotebookBelgesi kaydedilen) {
+    if (belge.toJsonString() != kaydedilen.toJsonString()) return;
+    _degisti = false;
+    notifyListeners();
+  }
+
   void _degistir() {
     _degisti = true;
     notifyListeners();

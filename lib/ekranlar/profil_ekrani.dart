@@ -96,6 +96,22 @@ class _ProfilEkraniState extends State<ProfilEkrani> {
         ),
         ListTile(
           contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.settings_outlined),
+          title: const Text('Ayarlar'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pushNamed(context, Rotalar.ayarlar),
+        ),
+        if (oturumServisi.girisYapildi)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.bookmarks_outlined),
+            title: const Text('Kaydedilen dersler'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () =>
+                Navigator.pushNamed(context, Rotalar.kaydedilenDersler),
+          ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.description_outlined),
           title: const Text('Örnek notebook'),
           trailing: const Icon(Icons.chevron_right),

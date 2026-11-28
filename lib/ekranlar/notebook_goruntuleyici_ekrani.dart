@@ -6,6 +6,8 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../modeller/notebook.dart';
 import '../modeller/notebook_duzenleyici.dart';
+import '../servisler/oturum_servisi.dart';
+import '../servisler/yerel_dosya_deposu.dart';
 import 'notebook_ciktilari.dart';
 import 'notebook_hucre_duzenleyici.dart';
 
@@ -21,18 +23,67 @@ class OrnekNotebookEkrani extends StatefulWidget {
 }
 
 class _OrnekNotebookEkraniState extends State<OrnekNotebookEkrani> {
-  late final Future<NotebookBelgesi> _notebook =
-      (widget.yukleyici ?? _varsayilanYukleyici)();
+  late final _oturum = oturumServisi;
+  String? _sahip;
+  late Future<NotebookBelgesi> _notebook;
+  static const _dosya = 'ornek.ipynb';
+
+  @override
+  void initState() {
+    super.initState();
+    _sahip = _oturum.kullaniciId;
+    _notebook = _yukle(_sahip);
+    if (widget.yukleyici == null) _oturum.addListener(_hesapDegisti);
+  }
+
+  void _hesapDegisti() {
+    final sahip = _oturum.kullaniciId;
+    if (sahip == _sahip) return;
+    setState(() {
+      _sahip = sahip;
+      _notebook = _yukle(sahip);
+    });
+  }
+
+  @override
+  void dispose() {
+    _oturum.removeListener(_hesapDegisti);
+    super.dispose();
+  }
+
+  Future<NotebookBelgesi> _yukle(String? sahip) async {
+    if (widget.yukleyici case final yukle?) return yukle();
+    final ham = await yerelDosyaDeposu.oku(
+      'notebook-taslaklari',
+      _oturum.api.adres.toString(),
+      sahip,
+      _dosya,
+    );
+    return NotebookBelgesi.fromJsonString(
+      ham ?? await rootBundle.loadString('assets/ornek_notebook.ipynb'),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final sahip = _sahip;
     return FutureBuilder<NotebookBelgesi>(
+      key: ValueKey(sahip),
       future: _notebook,
       builder: (context, durum) {
-        if (durum.hasData) {
+        if (durum.connectionState == ConnectionState.done && durum.hasData) {
           return NotebookGoruntuleyiciEkrani(
             notebook: durum.data!,
             baslik: 'Örnek notebook',
+            kaydet: widget.yukleyici != null
+                ? null
+                : (belge) => yerelDosyaDeposu.yaz(
+                    'notebook-taslaklari',
+                    _oturum.api.adres.toString(),
+                    sahip,
+                    _dosya,
+                    belge.toJsonString(),
+                  ),
           );
         }
         return Scaffold(
@@ -46,10 +97,6 @@ class _OrnekNotebookEkraniState extends State<OrnekNotebookEkrani> {
       },
     );
   }
-
-  static Future<NotebookBelgesi> _varsayilanYukleyici() => rootBundle
-      .loadString('assets/ornek_notebook.ipynb')
-      .then(NotebookBelgesi.fromJsonString);
 }
 
 /// Notebook'u gösterir. Sağ üstteki düğme düzenleme modunu açar (4.3): hücre
@@ -57,11 +104,13 @@ class _OrnekNotebookEkraniState extends State<OrnekNotebookEkrani> {
 class NotebookGoruntuleyiciEkrani extends StatefulWidget {
   final NotebookBelgesi notebook;
   final String baslik;
+  final Future<void> Function(NotebookBelgesi)? kaydet;
 
   const NotebookGoruntuleyiciEkrani({
     super.key,
     required this.notebook,
     this.baslik = 'Notebook',
+    this.kaydet,
   });
 
   @override
@@ -76,6 +125,29 @@ class _NotebookGoruntuleyiciEkraniState
   );
   final Map<int, TextEditingController> _denetleyiciler = {};
   bool _duzenleme = false;
+  bool _kaydediyor = false;
+
+  Future<void> _taslagiKaydet() async {
+    final belge = _duzenleyici.belge;
+    setState(() => _kaydediyor = true);
+    String mesaj;
+    try {
+      await widget.kaydet!(belge);
+      if (!mounted) return;
+      _duzenleyici.kaydedildi(belge);
+      mesaj = 'Notebook taslağı cihaza kaydedildi.';
+    } catch (_) {
+      if (!mounted) return;
+      mesaj = 'Notebook kaydedilemedi. Değişiklikler ekranda duruyor.';
+    } finally {
+      if (mounted) setState(() => _kaydediyor = false);
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mesaj)));
+    }
+  }
 
   @override
   void dispose() {
@@ -153,7 +225,7 @@ class _NotebookGoruntuleyiciEkraniState
       builder: (context) => AlertDialog(
         title: const Text('Değişiklikler kaybolacak'),
         content: const Text(
-          'Notebook üzerindeki düzenlemeler henüz kaydedilmiyor. Çıkmak istiyor musun?',
+          'Notebook üzerinde kaydedilmemiş düzenlemeler var. Çıkmak istiyor musun?',
         ),
         actions: [
           TextButton(
@@ -189,6 +261,14 @@ class _NotebookGoruntuleyiciEkraniState
             appBar: AppBar(
               title: Text(widget.baslik),
               actions: [
+                if (widget.kaydet != null)
+                  IconButton(
+                    tooltip: 'Notebook taslağını kaydet',
+                    onPressed: _duzenleyici.degisti && !_kaydediyor
+                        ? _taslagiKaydet
+                        : null,
+                    icon: const Icon(Icons.save_outlined),
+                  ),
                 IconButton(
                   key: const ValueKey('notebookDuzenle'),
                   tooltip: _duzenleme ? 'Düzenlemeyi bitir' : 'Düzenle',
@@ -216,9 +296,7 @@ class _NotebookGoruntuleyiciEkraniState
                       horizontal: 16,
                       vertical: 8,
                     ),
-                    child: const Text(
-                      'Değişiklikler bu ekranda tutuluyor, henüz kaydedilmiyor.',
-                    ),
+                    child: const Text('Kaydedilmemiş değişiklikler var.'),
                   ),
                 Expanded(
                   child: gorunurler.isEmpty
